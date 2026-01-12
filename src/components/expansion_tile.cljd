@@ -1,0 +1,141 @@
+(ns components.expansion-tile
+  (:require
+   [cljd.flutter :as f]
+   ["package:flutter/material.dart" :as m]
+   ["package:mongol/mongol.dart" :as mgl]))
+
+;; --- Core component: Themed destructured MongolExpansionTile ---
+
+(defn expansion-tile
+  [{:keys [title children direction initially-expanded expanded on-changed
+           on-long-press duration curve title-padding
+           indent selected] 
+    :or {direction :right
+         initially-expanded false
+         duration (m/Duration. .milliseconds 250)
+         curve m.Curves/easeOutQuart
+         title-padding (m.EdgeInsets/all 12)
+         indent 24.0
+         selected false}}]
+  (let [internal-state (atom initially-expanded)
+        is-hovered (atom false)]
+    (f/widget
+      ;; Use the provided destructuring syntax: extract colorScheme and textTheme from Theme
+      :get {{{:flds [primary onSurface surface outline variantOutline]} .-colorScheme
+             {:flds [bodyLarge]} .-textTheme} m/Theme}
+      :vsync vsync
+      :managed [controller (m/AnimationController.
+                             .vsync vsync
+                             .duration duration
+                             .value (if (or expanded @internal-state) 1.0 0.0))]
+      :watch [external-expanded expanded
+              internal-expanded internal-state
+              hover-val is-hovered]
+      :let [is-expanded (if (nil? external-expanded) internal-expanded external-expanded)
+            _ (if is-expanded (.forward controller) (.reverse controller))
+            
+            toggle (fn []
+                     (let [next (not is-expanded)]
+                       (when (nil? external-expanded) (reset! internal-state next))
+                       (when on-changed (on-changed next))))
+            
+            ;; Style logic: completely based on colorScheme fields
+            curr-bg (cond selected (.withOpacity primary 0.12)
+                          hover-val (.withOpacity onSurface 0.05)
+                          :else m/Colors.transparent)
+            curr-content-color (if selected primary onSurface)]
+      
+      (m/Flex. 
+        .direction (if (contains? #{:left :right} direction) m/Axis.horizontal m/Axis.vertical)
+        .mainAxisSize m/MainAxisSize.min
+        .crossAxisAlignment m/CrossAxisAlignment.start
+        .children
+        [(m/InkWell.
+           .onTap toggle
+           .onLongPress (when on-long-press #(on-long-press))
+           .onHover #(reset! is-hovered %)
+           .child (m/Container. 
+                    .padding title-padding 
+                    .decoration (m/BoxDecoration. 
+                                  .color curr-bg
+                                  .border (when selected
+                                            (m.Border/only .left (m.BorderSide. .color primary .width 3.0))))
+                    .child (m/Column. 
+                             .mainAxisSize m/MainAxisSize.min
+                             .children [(m/RotationTransition.
+                                          .turns (.drive (m/Tween. .begin 0.0 .end 0.25) 
+                                                         (m/CurvedAnimation. .parent controller .curve curve))
+                                          .child (m/Icon. m.Icons/chevron_right .size 18 .color curr-content-color))
+                                        (m/SizedBox. .height 8)
+                                        (m/DefaultTextStyle.
+                                          .style (.copyWith bodyLarge .color curr-content-color 
+                                                           .fontWeight (if selected m/FontWeight.bold m/FontWeight.normal))
+                                          .child title)])))
+         
+         (m/SizeTransition.
+           .sizeFactor controller
+           .axis (if (contains? #{:left :right} direction) m/Axis.horizontal m/Axis.vertical)
+           .axisAlignment (case direction (:left :up) -1.0 1.0)
+           .child (m/Container.
+                    .padding (m.EdgeInsets/only .top indent)
+                    .child (m/Stack. 
+                             .children
+                             [(m/Positioned.
+                                 .top 0 .bottom 0 .left 12 
+                                 .child (m/Container. .width 1.2 .color (.withOpacity (or outline primary) 0.3)))
+                              (m/Padding.
+                                .padding (m.EdgeInsets/only .left 20) 
+                                .child (if (contains? #{:left :right} direction)
+                                         (m/Row. .crossAxisAlignment m/CrossAxisAlignment.start .children children)
+                                         (m/Column. .crossAxisAlignment m/CrossAxisAlignment.start .children children)))])))]))))
+
+;; --- Child component: Also supports theming ---
+;; (defn menu-child [label active? on-tap]
+;;   (let [hovered (atom false)]
+;;     (f/widget
+;;      :get {{{:flds [primary onSurface]} .-colorScheme} m/Theme}
+;;      :watch [hovered-val hovered]
+;;      (m/InkWell.
+;;       .onTap on-tap
+;;       .onHover #(reset! hovered %)
+;;       .child (m/Container.
+;;               .padding (m.EdgeInsets/symmetric .vertical 14 .horizontal 10)
+;;               .color (cond active? (.withOpacity primary 0.08)
+;;                             hovered-val (.withOpacity onSurface 0.04)
+;;                            :else m/Colors.transparent)
+;;               .child (m/DefaultTextStyle.
+;;                       .style (m/TextStyle. .fontSize 14
+;;                                            .color (if active? primary (.withOpacity onSurface 0.7))
+;;                                            .fontWeight (if active? m/FontWeight.w600 m/FontWeight.normal))
+;;                       .child label))))))
+
+;; --- Top-level accordion demo ---
+;; (defn side-menu-accordion []
+;;   ;; Track two states: which Tile is expanded, which child item is clicked/selected
+;;   (let [active-id (atom "1")
+;;         active-sub-id (atom "s1-1")] 
+;;     (f/widget
+;;       :watch [current-id active-id
+;;               current-sub-id active-sub-id]
+;;       :let [menu-data [{:id "1" :title "ᠪᠠᠷᠢᠮᠲᠠ" 
+;;                         :subs [{:sid "s1-1" :name "ᠪᠦᠷᠢᠳᠬᠡᠯ"} 
+;;                                {:sid "s1-2" :name "ᠰᠢᠮᠨᠠᠯ"}]} 
+;;                        {:id "2" :title "ᠲᠣᠬᠢᠷᠠᠭᠦᠯᠭᠡ" 
+;;                         :subs [{:sid "s2-1" :name "ᠬᠡᠯᠡ"}]}]]
+;;       (m/Scaffold.
+;;         .body (m/Row.
+;;                 .children
+;;                 [(map (fn [{:keys [id title subs]}]
+;;                         (expansion-tile
+;;                          {:key (m/ValueKey. id)
+;;                           :title (mgl/MongolText title)
+;;                           :expanded (= current-id id)
+;;                           :selected (= current-id id)
+;;                           :on-changed (fn [v] (reset! active-id (when v id)))
+;;                           :children (map (fn [{:keys [sid name]}]
+;;                                            (menu-child
+;;                                             (mgl/MongolText name)
+;;                                             (= current-sub-id sid) ; Check if child item is active
+;;                                             #(reset! active-sub-id sid))) ; Click to update child item state
+;;                                          subs)}))
+;;                       menu-data)])))))
