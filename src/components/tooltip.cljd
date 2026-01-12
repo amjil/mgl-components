@@ -1,0 +1,159 @@
+(ns components.tooltip
+  (:require
+   [cljd.flutter :as f]
+   ["package:flutter/material.dart" :as m]
+   ["package:flutter/services.dart" :as s]
+   ["package:mongol/mongol.dart" :as mgl]))
+
+;; --- 1. Shape Layer (Physical Rendering) ---
+(defn- bubble-shape [arrow-x color]
+  (let [arrow-h 8.0 arrow-w 12.0 radius 8.0]
+    (reify :extends m/ShapeBorder
+      (getInnerPath [_ rect _]
+        (let [r (.-right rect) l (.-left rect) t (.-top rect) b (.-bottom rect)]
+          (-> (m/Path.)
+              (.addRRect (m/RRect.fromLTRBR l t r (- b arrow-h) (m/Radius.circular radius))))))
+      (getOuterPath [_ rect _]
+        (let [r (.-right rect) l (.-left rect) t (.-top rect) b (.-bottom rect)
+              body-bottom (- b arrow-h)
+              ax (or arrow-x (/ r 2))
+              safe-ax (-> ax (max (+ l radius (/ arrow-w 2))) (min (- r radius (/ arrow-w 2))))]
+          (-> (m/Path.)
+              (.addRRect (m/RRect.fromLTRBR l t r body-bottom (m/Radius.circular radius)))
+              (.moveTo (- safe-ax (/ arrow-w 2)) body-bottom)
+              (.lineTo safe-ax b)
+              (.lineTo (+ safe-ax (/ arrow-w 2)) body-bottom)
+              (.close))))
+      (paint [_ canvas rect _]
+        (let [paint (m/Paint. .color color .style m/PaintingStyle.fill .isAntiAlias true)]
+          (.drawPath canvas (.getOuterPath _ rect nil) paint)))
+      (dimensions [_] (m/EdgeInsets.only .bottom arrow-h))
+      (scale [_ t] _)
+      (lerpFrom [_ a t] _)
+      (lerpTo [_ b t] _))))
+
+;; --- 2. Content Layer (Styling) ---
+(defn- bubble-content-widget [{:keys [message arrow-x theme-data]}]
+  (f/widget
+    :get {{{:flds [surfaceVariant onSurfaceVariant]} .-colorScheme
+           {:flds [labelLarge]} .-textTheme} theme-data}
+    (m/DecoratedBox
+      .decoration (m/ShapeDecoration 
+                    .shape (bubble-shape arrow-x surfaceVariant)
+                    .shadows [(m/BoxShadow .color (m/Colors.black.withOpacity 0.2) 
+                                           .blurRadius 8.0 .offset (m/Offset 0 4))])
+      .child (m/Padding
+               .padding (m/EdgeInsets.only .top 10.0 .left 12.0 .right 12.0 .bottom 16.0)
+               .child (m/Container
+                        .constraints (m/BoxConstraints .maxHeight 250.0)
+                        .child (m/IntrinsicWidth
+                                 .child (mgl/MongolText 
+                                          message 
+                                          .style (.copyWith labelLarge .color onSurfaceVariant))))))))
+
+;; --- 3. Wrapper Layer (Layout & Defense) ---
+(defn- bubble-overlay-wrapper [{:keys [layer-link message target-x screen-w theme-data]}]
+  (f/widget
+    (m/CompositedTransformFollower
+      .link layer-link
+      .targetAnchor m/Alignment.topCenter
+      .followerAnchor m/Alignment.bottomCenter
+      .child 
+      (m/TweenAnimationBuilder
+        .tween (m/Tween .begin 0.0 .end 1.0)
+        .duration (m/Duration .milliseconds 150)
+        .builder (fn [_ v child] (m/Opacity .opacity v .child child))
+        .child 
+        (m/LayoutBuilder
+          .builder (fn [_ constraints]
+                     (let [raw-w (.-maxWidth constraints)
+                           ;; Safety Defense: If width is infinite, fallback to 80% of screen width
+                           safe-tw (if (.isInfinite raw-w) (* screen-w 0.8) (min raw-w (* screen-w 0.8)))
+                           half-w (/ safe-tw 2)
+                           shift (cond (< target-x half-w) (- half-w target-x)
+                                       (< (- screen-w target-x) half-w) (- (- screen-w target-x) half-w)
+                                       :else 0.0)]
+                       (m/Transform.translate
+                         .offset (m/Offset shift 0)
+                         .child (m/ConstrainedBox 
+                                  .constraints (m/BoxConstraints.tightFor .width safe-tw)
+                                  .child (bubble-content-widget 
+                                           {:message message 
+                                            :arrow-x (- half-w shift)
+                                            :theme-data theme-data}))))))))))
+
+;; --- 4. Main Component (Lifecycle & Persistence) ---
+(defn v-overlay-tooltip [{:keys [child message haptic?] :or {haptic? false}}]
+  (let [layer-link (m/LayerLink.)
+        overlay-entry (atom nil)
+        is-show? (atom false)
+        ;; Tracks scroll position to ensure listener removal
+        active-pos (atom nil)]
+    (f/widget
+      :get {theme m/Theme}
+      :context ctx
+      :let [hide-fn (fn []
+                      (when-let [entry @overlay-entry]
+                        ;; Persistence Hook (2026-01-12)
+                        (when @is-show? (println "[2026-01-12] Persisting result:" message))
+                        (.remove entry)
+                        (reset! overlay-entry nil)
+                        (reset! is-show? false)))
+            
+            show-fn (fn []
+                      (hide-fn) ;; Clean up any existing overlay
+                      (when haptic? (s/HapticFeedback.lightImpact))
+                      
+                      ;; 1. Identify scrollable parent and attach listener
+                      (when-let [s (m/Scrollable.of ctx)]
+                        (let [pos (.-position s)]
+                          (.addListener pos hide-fn)
+                          (reset! active-pos pos)))
+
+                      (let [render-box (cast m/RenderBox (.findRenderObject ctx))
+                            offset (.localToGlobal render-box m/Offset.zero)
+                            size (.size render-box)
+                            screen-w (.-width (m/MediaQuery.sizeOf ctx))
+                            target-x (+ (.-dx offset) (/ (.-width size) 2))
+                            entry (m/OverlayEntry
+                                    .builder (fn [_] 
+                                               (bubble-overlay-wrapper 
+                                                 {:layer-link layer-link
+                                                  :message message
+                                                  :target-x target-x
+                                                  :screen-w screen-w
+                                                  :theme-data theme})))]
+                        ;; 2. Insert into Overlay
+                        (when-let [overlay (m/Overlay.of ctx)]
+                          (reset! overlay-entry entry)
+                          (.insert overlay entry)
+                          (reset! is-show? true))))]
+      
+      ;; Single Unified Lifecycle Management
+      :managed [_ (identity true) 
+                :dispose (fn [_] 
+                           ;; A. Remove scroll listener to prevent memory leaks
+                           (when-let [pos @active-pos]
+                             (try (.removeListener pos hide-fn) (catch Exception _ nil))
+                             (reset! active-pos nil))
+                           ;; B. Force hide overlay on widget disposal
+                           (hide-fn))]
+      
+      (m/GestureDetector
+        .onLongPress show-fn
+        .onLongPressUp (fn []
+                         ;; Clean up listener and hide on release
+                         (when-let [pos @active-pos]
+                           (try (.removeListener pos hide-fn) (catch Exception _ nil))
+                           (reset! active-pos nil))
+                         (hide-fn))
+        .child (m/CompositedTransformTarget
+                 .link layer-link
+                 .child child)))))
+
+
+;; Example usage
+;; (v-overlay-tooltip
+;;  {:message "ᠮᠣᠩᠭᠣᠯ ᠽᠢᠪ" ; "Mongol" in vertical script
+;;   :haptic? true
+;;   :child (m/Icon m.Icons/info_outline)})
