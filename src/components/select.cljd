@@ -1,0 +1,296 @@
+(ns components.select
+  (:require ["package:flutter/material.dart" :as m]
+            ["package:mongol/mongol.dart" :as mongol]
+            [cljd.flutter :as f]
+            [dart:core :as dc]))
+
+;; --- 1. Helper component: Build popup menu content ---
+(defn- build-menu 
+  [context {:keys [items value on-changed menu-width max-height 
+                   card-color elevation border-radius shadow
+                   item-padding item-border-radius selected-color
+                   group-style group-padding] :as opts} 
+   close-fn!]
+  (let [selected-item-key (m/GlobalKey.)]
+    (f/widget
+      :get {{theme-card-color .-cardColor
+             theme-hint-color .-hintColor
+             {theme-primary .-primary} .-colorScheme
+             {label-style .-labelSmall} .-textTheme} m/Theme}
+      :let [eff-card-color (or card-color theme-card-color)
+            eff-selected-color (or selected-color (.withOpacity theme-primary 0.12))
+            eff-item-br (or item-border-radius (m/BorderRadius.circular 8))
+            eff-group-style (or group-style (.copyWith label-style .color theme-hint-color))
+            
+            result (reduce 
+                     (fn [acc {:keys [value label group] :as item}]
+                       (let [show-group? (and group (not= group (:last-group acc)))
+                             selected? (= value (:value opts))
+                             item-widget (m/InkWell
+                                           .borderRadius eff-item-br
+                                           .onTap (fn [] (on-changed value) (close-fn!))
+                                           .child (m/Container
+                                                    :key (if selected? selected-item-key nil)
+                                                    .padding (or item-padding (m/EdgeInsets.symmetric .vertical 16 .horizontal 14))
+                                                    .decoration (m/BoxDecoration
+                                                                  .color (if selected? eff-selected-color nil)
+                                                                  .borderRadius eff-item-br)
+                                                    .child label))]
+                         {:menu-items (cond-> (:menu-items acc)
+                                        show-group? (conj (m/Padding 
+                                                            .padding (or group-padding (m/EdgeInsets.symmetric .horizontal 12 .vertical 10))
+                                                            .child (m/DefaultTextStyle.merge .style eff-group-style .child group)))
+                                        true (conj item-widget))
+                          :last-group group
+                          :has-selected? (or (:has-selected? acc) selected?)}))
+                     {:menu-items [] :last-group nil :has-selected? false}
+                     items)
+            
+            _ (let [binding-instance (.-instance m/WidgetsBinding)]
+                (.addPostFrameCallback binding-instance
+                  (fn [_]
+                    (let [selected-ctx (.-currentContext selected-item-key)]
+                      (when (and selected-ctx (:has-selected? result))
+                        (m/Scrollable.ensureVisible 
+                          selected-ctx
+                          .duration (dc/Duration .milliseconds 300)
+                          .curve m/Curves.easeInOut
+                          .alignment 0.5))))))]
+      (m/Material
+        .elevation (or elevation 8.0)
+        .color eff-card-color
+        .borderRadius (or border-radius (m/BorderRadius.circular 12))
+        .shadowColor (when shadow (.-color shadow))
+        .child 
+        (m/ConstrainedBox
+          .constraints (m/BoxConstraints .maxHeight max-height .minWidth menu-width)
+          .child 
+          (m/ListView
+            .scrollDirection m/Axis.horizontal
+            .shrinkWrap true
+            .physics (m/ClampingScrollPhysics.)
+            .padding (m/EdgeInsets.symmetric .horizontal 8 .vertical 8)
+            .children (:menu-items result)))))))
+
+;; --- 2. Main component: MongolSelect ---
+(defn mongol-select
+  [{:keys [value items on-changed value-builder menu-width max-height align-right?
+           animation-duration]
+    :or {menu-width 200.0 
+         max-height 300.0 
+         align-right? :auto
+         animation-duration 250} :as opts}]
+  ;; All persistent references are placed outside f/widget
+  (let [overlay-entry (atom nil)
+        link (m/LayerLink.)
+        effective-align-right? (atom true)]
+    (f/widget
+      :context ctx
+      :vsync vsync
+      :managed [controller (m/AnimationController
+                             .value 0.0
+                             .duration (dc/Duration .milliseconds animation-duration)
+                             .vsync vsync)]
+      :let [fade (m/CurvedAnimation .parent controller .curve m/Curves.easeOut)
+            scale (m/CurvedAnimation .parent controller .curve m/Curves.easeOutCubic)]
+      
+      (letfn [(hide-overlay! []
+                ^:async
+                (let [_ (await (.reverse controller))
+                      entry @overlay-entry]
+                  (when entry
+                    (.remove entry)
+                    (reset! overlay-entry nil))))
+              
+              (show! []
+                (let [render-box (-> ctx .findRenderObject)
+                      offset (.localToGlobal render-box m/Offset.zero)
+                      screen-width (-> (m/MediaQuery.of ctx) .-size .-width)
+                      trigger-left (.-dx offset)
+                      ;; Update atom when showing, since it's outside, state is persistent
+                      is-right? (reset! effective-align-right? 
+                                        (if (= :auto align-right?)
+                                          (< (+ trigger-left menu-width) screen-width)
+                                          align-right?))
+                      e (m/OverlayEntry
+                          .builder 
+                          (fn [overlay-ctx]
+                            (m/Stack
+                              .children
+                              [(m/GestureDetector 
+                                 .behavior m/HitTestBehavior.opaque 
+                                 .onTap hide-overlay!
+                                 .child (m/Container .color m/Colors.transparent))
+                               (m/CompositedTransformFollower
+                                 .link link
+                                 .showWhenUnlinked false
+                                 .targetAnchor (if is-right? m/Alignment.bottomLeft m/Alignment.bottomRight)
+                                 .followerAnchor (if is-right? m/Alignment.topLeft m/Alignment.topRight)
+                                 .child (m/FadeTransition
+                                          .opacity fade
+                                          .child (m/ScaleTransition
+                                                   .scale scale
+                                                   .alignment (if is-right? m/Alignment.topLeft m/Alignment.topRight)
+                                                   .child (m/GestureDetector
+                                                            .onTap (fn []) 
+                                                            .child (build-menu overlay-ctx opts hide-overlay!)))))])))]
+                  (reset! overlay-entry e)
+                  (.insert (m/Overlay.of ctx) e)
+                  (.forward controller)))]
+        
+        (m/CompositedTransformTarget
+          .link link
+          .child (m/GestureDetector
+                   .behavior m/HitTestBehavior.opaque
+                   .onTap (fn [] (if @overlay-entry (hide-overlay!) (show!)))
+                   .child (value-builder value)))))))
+
+;; --- 1. Helper component: Build popup menu content ---
+(defn- build-menu 
+  [context {:keys [items value on-changed menu-width max-height 
+                   card-color elevation border-radius shadow
+                   item-padding item-border-radius selected-color
+                   group-style group-padding] :as opts} 
+   close-fn!]
+  (let [selected-item-key (m/GlobalKey.)]
+    (f/widget
+      ;; Use :get to deeply destructure Theme
+      :get {;; Extract all required nested properties from m/Theme at once
+        {theme-card-color .-cardColor
+         theme-hint-color .-hintColor
+         ;; Further destructure colorScheme
+         {theme-primary .-primary} .-colorScheme
+         ;; Further destructure textTheme
+         {label-style .-labelSmall} .-textTheme} m/Theme}
+      
+      :let [;; Merge logic: prioritize passed parameters, otherwise use theme defaults
+            eff-card-color (or card-color theme-card-color)
+            eff-selected-color (or selected-color (.withOpacity theme-primary 0.12))
+            eff-item-br (or item-border-radius (m/BorderRadius.circular 8))
+            eff-group-style (or group-style (.copyWith label-style .color theme-hint-color))
+            
+            ;; 1. Data transformation and selected item marking
+            result (reduce 
+                     (fn [acc {:keys [value label group] :as item}]
+                       (let [show-group? (and group (not= group (:last-group acc)))
+                             selected? (= value (:value opts))
+                             item-widget (m/InkWell
+                                           .borderRadius eff-item-br
+                                           .onTap (fn [] (on-changed value) (close-fn!))
+                                           .child (m/Container
+                                                    :key (if selected? selected-item-key nil)
+                                                    .padding (or item-padding (m/EdgeInsets.symmetric .vertical 16 .horizontal 14))
+                                                    .decoration (m/BoxDecoration
+                                                                  .color (if selected? eff-selected-color nil)
+                                                                  .borderRadius eff-item-br)
+                                                    .child label))]
+                         {:menu-items (cond-> (:menu-items acc)
+                                        show-group? (conj (m/Padding 
+                                                            .padding (or group-padding (m/EdgeInsets.symmetric .horizontal 12 .vertical 10))
+                                                            .child (m/DefaultTextStyle.merge .style eff-group-style .child group)))
+                                        true (conj item-widget))
+                          :last-group group
+                          :has-selected? (or (:has-selected? acc) selected?)}))
+                     {:menu-items [] :last-group nil :has-selected? false}
+                     items)
+            
+            ;; 2. Register auto-scroll after first frame
+            _ (let [binding-instance (.-instance m/WidgetsBinding)]
+                (.addPostFrameCallback binding-instance
+                  (fn [_]
+                    (let [selected-ctx (.-currentContext selected-item-key)]
+                      (when (and selected-ctx (:has-selected? result))
+                        (m/Scrollable.ensureVisible 
+                          selected-ctx
+                          .duration (dc/Duration .milliseconds 300)
+                          .curve m/Curves.easeInOut
+                          .alignment 0.5))))))]
+      
+      (m/Material
+        .elevation (or elevation 8.0)
+        .color eff-card-color
+        .borderRadius (or border-radius (m/BorderRadius.circular 12))
+        .shadowColor (when shadow (.-color shadow))
+        .child 
+        (m/ConstrainedBox
+          .constraints (m/BoxConstraints .maxHeight max-height .minWidth menu-width)
+          .child 
+          (m/ListView
+            .scrollDirection m/Axis.horizontal
+            .shrinkWrap true
+            .physics (m/ClampingScrollPhysics.)
+            .padding (m/EdgeInsets.symmetric .horizontal 8 .vertical 8)
+            .children (:menu-items result)))))))
+
+;; --- 2. Main component: MongolSelect ---
+(defn mongol-select
+  "
+  Fully parameterized Mongolian text selector component with styling, alignment, and animation
+  "
+  [{:keys [value items on-changed value-builder menu-width max-height align-right?
+           animation-duration]
+    :or {menu-width 200.0 
+         max-height 300.0 
+         align-right? :auto
+         animation-duration 250} :as opts}]
+  (let [overlay-entry (atom nil)
+        link (m/LayerLink.)]
+    (f/widget
+      :context ctx
+      :let [effective-align-right? (atom true)]
+      :vsync vsync
+      :managed [controller (m/AnimationController
+                             .value 0.0
+                             .duration (dc/Duration .milliseconds animation-duration)
+                             .vsync vsync)]
+      :let [fade (m/CurvedAnimation .parent controller .curve m/Curves.easeOut)
+            scale (m/CurvedAnimation .parent controller .curve m/Curves.easeOutCubic)]
+      
+      (letfn [(hide-overlay! []
+                ^:async
+                (let [_ (await (.reverse controller))
+                      entry @overlay-entry]
+                  (when entry
+                    (.remove entry)
+                    (reset! overlay-entry nil))))
+              
+              (show! []
+                (let [render-box (-> ctx .findRenderObject)
+                      offset (.localToGlobal render-box m/Offset.zero)
+                      screen-width (-> (m/MediaQuery.of ctx) .-size .-width)
+                      trigger-left (.-dx offset)
+                      is-right? (reset! effective-align-right? 
+                                        (if (= :auto align-right?)
+                                          (< (+ trigger-left menu-width) screen-width)
+                                          align-right?))
+                      e (m/OverlayEntry
+                          .builder 
+                          (fn [overlay-ctx]
+                            (m/Stack
+                              .children
+                              [(m/GestureDetector 
+                                 .behavior m/HitTestBehavior.opaque 
+                                 .onTap hide-overlay!
+                                 .child (m/Container .color m/Colors.transparent))
+                               (m/CompositedTransformFollower
+                                 .link link
+                                 .showWhenUnlinked false
+                                 .targetAnchor (if is-right? m/Alignment.bottomLeft m/Alignment.bottomRight)
+                                 .followerAnchor (if is-right? m/Alignment.topLeft m/Alignment.topRight)
+                                 .child (m/FadeTransition
+                                          .opacity fade
+                                          .child (m/ScaleTransition
+                                                   .scale scale
+                                                   .alignment (if is-right? m/Alignment.topLeft m/Alignment.topRight)
+                                                   .child (m/GestureDetector
+                                                            .onTap (fn []) 
+                                                            .child (build-menu overlay-ctx opts hide-overlay!)))))])))]
+                  (reset! overlay-entry e)
+                  (.insert (m/Overlay.of ctx) e)
+                  (.forward controller)))]
+        (m/CompositedTransformTarget
+          .link link
+          .child (m/GestureDetector
+                   .behavior m/HitTestBehavior.opaque
+                   .onTap (fn [] (if @overlay-entry (hide-overlay!) (show!)))
+                   .child (value-builder value)))))))
