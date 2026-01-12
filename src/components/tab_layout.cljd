@@ -4,51 +4,65 @@
             ["package:mongol/mongol.dart" :as mgl]
             [cljd.flutter :as f]))
 
-;; 1. Vertical Tab item component - supports optional icon
-(defn- tab-item [{:keys [text icon active? on-tap]}]
-  (m/GestureDetector
-    .onTap on-tap
-    .child (m/Container
-             .padding (m/EdgeInsets.symmetric .vertical 20.0 .horizontal 16.0)
-             .decoration (m/BoxDecoration
-                           .color (if active? (m/Colors.blue.withOpacity 0.05) m/Colors.transparent)
-                           .border (if active?
-                                     (m/Border .right (m/BorderSide .color m/Colors.blue .width 4.0))
-                                     (m/Border.all .color m/Colors.transparent)))
-             .child (m/Column
-                      .mainAxisSize m/MainAxisSize.min
-                      .children 
-                      [(when icon 
-                         (m/Padding 
-                           .padding (m/EdgeInsets.only .bottom 8.0)
-                           .child (m/Icon icon 
-                                    .size 20.0
-                                    .color (if active? m/Colors.blue m/Colors.black54))))
-                       (mgl/MongolText 
-                         text
-                         .style (m/TextStyle
-                                  .fontSize 18.0
-                                  .color (if active? m/Colors.blue m/Colors.black87)
-                                  .fontWeight (if active? m/FontWeight.bold m/FontWeight.normal)))]))))
+;; --- Private Helper Components ---
 
-;; 2. Sidebar page layout component - tabs can now accept strings or maps with :text and :icon
-(defn sidebar-page [{:keys [tabs contents initial-idx on-change] :or {initial-idx 0}}]
+(defn- tab-item [{:keys [text icon active? on-tap]}]
+  (f/widget
+    ;; Deep destructuring for theme properties
+    :get {{{:flds [primary onSurface onSurfaceVariant]} .-colorScheme
+           {:flds [labelLarge]} .-textTheme} m/Theme}
+    (m/GestureDetector
+      .onTap on-tap
+      .child (m/Container
+               .padding (m/EdgeInsets.symmetric .vertical 20.0 .horizontal 16.0)
+               .decoration (m/BoxDecoration
+                             .color (if active? (.withOpacity primary 0.08) m/Colors.transparent)
+                             .border (if active?
+                                       (m/Border .right (m/BorderSide .color primary .width 4.0))
+                                       (m/Border.all .color m/Colors.transparent)))
+               .child (m/Column
+                        .mainAxisSize m/MainAxisSize.min
+                        .children 
+                        [(when icon 
+                           (m/Padding 
+                             .padding (m/EdgeInsets.only .bottom 8.0)
+                             .child (m/Icon icon 
+                                      .size 22.0
+                                      .color (if active? primary onSurfaceVariant))))
+                         (mgl/MongolText 
+                           text
+                           .style (.copyWith ^m/TextStyle labelLarge
+                                    .fontSize 18.0
+                                    .color (if active? primary onSurface)
+                                    .fontWeight (if active? m/FontWeight.bold m/FontWeight.normal)))])))))
+
+;; --- Public Library Functions ---
+
+(defn sidebar-page 
+  "Vertical Mongolian Sidebar Component.
+   Parameters:
+   - tabs: Vector of strings or maps [{:text \"..\" :icon m/Icons.x}]
+   - contents: List of Widgets corresponding to the tabs
+   - initial-idx: Initial selected index (default 0)
+   - on-change: Callback function triggered on index change (fn [idx])"
+  [{:keys [tabs contents initial-idx on-change] :or {initial-idx 0}}]
+  {:pre [(vector? tabs) (vector? contents) (= (count tabs) (count contents))]}
   (let [selected-idx (atom initial-idx)]
     (f/widget
       :watch [curr-idx selected-idx]
+      :get {{{:flds [surface surfaceVariant]} .-colorScheme} m/Theme}
       (row-layout
         {:side-row-position :left
          :side-row (m/Container
                      .decoration (m/BoxDecoration 
-                                   .color (m/Colors.grey.shade50)
-                                   .border (m/Border .right (m/BorderSide .color (m/Colors.grey.shade200))))
+                                   .color surface
+                                   .border (m/Border .right (m/BorderSide .color surfaceVariant)))
                      .child (m/SingleChildScrollView
                               .child (m/Column
                                        .mainAxisSize m/MainAxisSize.min
                                        .children (map-indexed 
                                                    (fn [idx item]
-                                                     (let [;; Handle the case where tabs can be an array of strings or an array of maps
-                                                           text (if (map? item) (:text item) item)
+                                                     (let [text (if (map? item) (:text item) item)
                                                            icon (when (map? item) (:icon item))]
                                                        (tab-item 
                                                          {:text text
@@ -59,7 +73,7 @@
                                                                     (when on-change (on-change idx)))})))
                                                    tabs))))
          :main-row (m/Container
-                     .color m/Colors.white
+                     .color surface
                      .child (m/AnimatedSwitcher
                               .duration (Duration .milliseconds 350)
                               .transitionBuilder (fn [child animation]
@@ -74,11 +88,13 @@
                                        .child (nth contents curr-idx))))}))))
 
 
+
 ;; Example usage
 ;; (sidebar-page 
 ;;   {:tabs [{:text "ᠨᠢᠢᠷ" :icon m/Icons.home}
 ;;           {:text "ᠠᠩᠭᠢᠯᠠᠯ" :icon m/Icons.category}
-;;           "ᠪᠢ"] ; It's also fine to mix strings and maps, "ᠪᠢ" (my) has no icon
-;;    :contents [(mgl/MongolText "Home Page") (mgl/MongolText "Category Page") (mgl/MongolText "Profile Page")]
-;;    :initial-idx 0
-;;    :on-change #(println "Selected:" %)})
+;;           "ᠪᠢ"] ; String-only fallback
+;;    :contents [(m/Text "Home Page Content") 
+;;               (m/Text "Category Page Content") 
+;;               (m/Text "Profile Page Content")]
+;;    :on-change (fn [idx] (println "Switched to tab:" idx))})
