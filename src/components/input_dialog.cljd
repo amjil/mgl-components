@@ -1,0 +1,142 @@
+(ns components.input-dialog
+  (:require
+   ["package:flutter/material.dart" :as m]
+   ["package:flutter/services.dart" :as services]
+   ["package:mongol/mongol.dart" :as mgl]
+   [cljd.flutter :as f]
+   [virtual-keyboard.keyboard :as keyboard]
+   [components.tokens :as tokens]
+   [components.text :as text]))
+
+;; 1. Results list view component (destructures theme internally)
+(defn results-list-view [{:keys [items on-tap]}]
+  (f/widget
+   :get {{{:flds [surfaceVariant onSurfaceVariant]} .-colorScheme} m/Theme}
+   (m/Expanded
+    .flex 2
+    .child 
+    (m/Padding
+     .padding (m/EdgeInsets.only :left (tokens/space :s))
+     (m/ListView
+      .scrollDirection m/Axis.horizontal
+      .children 
+      (vec (map (fn [item] 
+                  (m/Padding
+                   .padding (m/EdgeInsets.only :right (tokens/space :xs))
+                   .child
+                   (m/Material
+                    .color surfaceVariant
+                    .borderRadius (m/BorderRadius.circular 8)
+                    .clipBehavior m/Clip.antiAlias
+                    .child
+                    (m/InkWell 
+                     .onTap #(on-tap item)
+                     .child (m/Container 
+                             .padding (m/EdgeInsets.all (tokens/space :s))
+                             .child (text/text-block 
+                                     {:text (:text item)
+                                      :style (m/TextStyle .color onSurfaceVariant)}))))))
+                items)))))))
+
+;; 2. Action buttons group (destructures theme internally)
+(defn action-buttons [{:keys [on-paste on-submit]}]
+  (f/widget
+   :get {{{:flds [primary]} .-colorScheme} m/Theme}
+   (m/Padding
+    .padding (m/EdgeInsets.only :left (tokens/space :s))
+    (m/Column
+     .mainAxisSize m/MainAxisSize.min
+     .children
+     [(m/IconButton 
+       .icon (m/Icon m/Icons.paste) 
+       .color primary
+       .onPressed on-paste)
+      (m/SizedBox .height (tokens/space :s))
+      (mgl/MongolElevatedButton
+       .onPressed on-submit
+       .child (text/text-block {:text "Confirm"}))]))))
+
+;; 3. Core input row (contains input field layout)
+(defn input-row-content [{:keys [controller hint results-data on-changed on-result-tap on-submit]}]
+  (f/widget
+   :get {{{:flds [onSurface outlineVariant]} .-colorScheme} m/Theme}
+   (m/Row
+    .crossAxisAlignment m/CrossAxisAlignment.start
+    .children
+    [;; Input field
+     (m/Expanded
+      .flex 1
+      .child (m/Container
+              .decoration (m/BoxDecoration 
+                           .border (m/Border.all .color outlineVariant) 
+                           .borderRadius (m/BorderRadius.circular 8))
+              .child (mgl/MongolTextField
+                      .controller controller
+                      .autofocus true
+                      .maxLines nil
+                      .style (m/TextStyle .color onSurface)
+                      .decoration (m/InputDecoration 
+                                   .border m/InputBorder.none 
+                                   .contentPadding (m/EdgeInsets.all (tokens/space :s))
+                                   .hintText hint)
+                      .onChanged on-changed)))
+
+     ;; Results list
+     (if (seq results-data)
+       (results-list-view {:items results-data :on-tap on-result-tap})
+       (m/SizedBox.shrink))
+
+     ;; Button group
+     (action-buttons 
+      {:on-submit on-submit
+       :on-paste #(-> (services/Clipboard.getData services/Clipboard.kTextPlain)
+                      (.then (fn [data] 
+                               (when-let [t (and data (.-text data))]
+                                 (set! (.-text controller) t)
+                                 (on-changed t)))))})])))
+
+;; 4. Main dialog (entry component)
+(defn generic-input-dialog
+  [{:keys [hint initial-text on-submit on-changed custom-keyboard-fns results-data on-result-tap]
+    :or {initial-text "" results-data []}}]
+  (let [input-text-atom (atom initial-text)]
+    (f/widget
+     :context ctx
+     :managed [controller (m/TextEditingController .text initial-text)]
+     :get {{{:flds [surface]} .-colorScheme} m/Theme}
+     :let [h (-> (m/MediaQuery.of ctx) .-size .-height)]
+     (m/Dialog
+      .insetPadding m/EdgeInsets.zero
+      .backgroundColor surface)
+     (m/Container
+      .height (* h 0.9))
+     (m/Column
+      .children
+      [;; Top actions
+       (m/Align
+        .alignment m/Alignment.topRight
+        .child (m/IconButton
+                .icon (m/Icon m/Icons.close)
+                .onPressed #(-> (m/Navigator.of ctx) (.pop))))
+
+       ;; Middle stack area
+       (m/Expanded
+        .child
+        (m/Padding
+         .padding (m/EdgeInsets.symmetric :horizontal (tokens/space :m))
+         (m/Stack
+          .children
+          [(input-row-content
+            {:controller controller
+             :hint hint
+             :results-data results-data
+             :on-changed (fn [t] (reset! input-text-atom t) (when on-changed (on-changed t)))
+             :on-result-tap (fn [i] (on-result-tap i controller input-text-atom))
+             :on-submit #(on-submit @input-text-atom)})
+
+           (keyboard/candidates nil)])))
+
+       ;; Bottom keyboard
+       (m/SizedBox .height (tokens/space :m))
+       (keyboard/keyboard
+        {:custom-fns custom-keyboard-fns})]))))

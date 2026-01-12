@@ -1,0 +1,47 @@
+(ns components.tokens
+  (:require
+   ["package:flutter/material.dart" :as m]))
+
+;; ============================================
+;; 1. Basic Design Tokens
+;; ============================================
+
+;; 1.1 Size and Spacing
+(def spacing
+  {:xs 4.0   ; space-xs: micro spacing between characters
+   :s 8.0    ; space-s: spacing within blocks
+   :m 12.0   ; space-m: basic distance between blocks
+   :l 20.0   ; space-l: module separation
+   :xl 32.0}) ; space-xl: page-level whitespace
+
+;; 1.2 Typography Scale
+(def font-sizes
+  {:xl 24.0  ; Focus current task
+   :l 20.0   ; Title / Project
+   :m 16.0   ; Body / Task
+   :s 12.0}) ; Label / Status
+
+;; 1.3 Color Tokens
+(def colors
+  {:bg m/Colors.white
+   :bg-focus (m/Colors.grey.shade100)  ; Focus background (low stimulation)
+   :text-main m/Colors.black87
+   :text-weak m/Colors.grey.shade600
+   :accent m/Colors.blue.shade400})     ; Emphasis / Current
+
+;; Helper function: get spacing
+(defn space [key]
+  (get spacing key 0.0))
+
+;; Helper function: get font size
+(defn font-size [key]
+  (get font-sizes key 16.0))
+
+;; Helper function: get color
+(defn color [key]
+  (get colors key m/Colors.black))
+
+;; Helper function: calculate line height
+(defn line-height [font-size]
+  (* font-size 1.6))
+

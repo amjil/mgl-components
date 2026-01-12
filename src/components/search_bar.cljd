@@ -1,0 +1,100 @@
+(ns components.search-bar
+  (:require 
+   ["package:flutter/material.dart" :as m]
+   [cljd.flutter :as f]
+   [components.text :as text]))
+
+(defn fake-search-bar
+  [{:keys [state-atom label icon on-tap haptic?] 
+    :or {label "Search..." 
+         icon m/Icons.search 
+         haptic? true}}]
+  (f/widget
+   :get {{{:flds [primary surfaceVariant onSurfaceVariant outline]} .-colorScheme
+          {:flds [bodyMedium]} .-textTheme} m/Theme}
+   :vsync vsync
+   :managed [;; Controller for the breathing border effect
+             breath-ctrl (m/AnimationController
+                           .vsync vsync
+                           .duration (m/Duration .milliseconds 1500))
+             ;; Controller for the press-to-scale effect
+             press-ctrl (m/AnimationController
+                          .vsync vsync
+                          .duration (m/Duration .milliseconds 120))]
+   :watch [val state-atom]
+   
+   ;; Official Pattern: bg-watcher handles animation lifecycle based on state changes
+   :bg-watcher ([new-val state-atom]
+                (if-let [_has-content? (not (empty? new-val))]
+                    (when-not (.isAnimating breath-ctrl)
+                      (.repeat breath-ctrl .reverse true))
+                    (do (.stop breath-ctrl) 
+                        (.reset breath-ctrl))))
+
+   :let [has-content? (not (empty? val))
+         ;; Define the scaling tween for the press effect
+         scale-anim (m/Tween .begin 1.0 .end 0.95
+                     .animate (m/CurvedAnimation .parent press-ctrl .curve m/Curves.easeInOut))]
+   
+   (m/GestureDetector
+    .onTapDown (fn [_] 
+                 (.forward press-ctrl)
+                 (when haptic? (m/HapticFeedback.lightImpact)))
+    .onTapUp (fn [_] 
+               (.reverse press-ctrl)
+               (when haptic? (m/HapticFeedback.mediumImpact))
+               (on-tap))
+    .onTapCancel (fn [] (.reverse press-ctrl))
+    .child 
+    (m/AnimatedBuilder
+     ;; Listenable.merge allows one builder to react to multiple animation controllers
+     .animation (m/Listenable.merge [breath-ctrl press-ctrl])
+     .builder 
+     (fn [_context _]
+       (m/Transform.scale
+        .scale (.value scale-anim)
+        .child 
+        (m/Padding
+         .padding (m/EdgeInsets.all 8)
+         .child 
+         (m/Container
+          .padding (m/EdgeInsets.symmetric .vertical 12 .horizontal 6)
+          .decoration (m/BoxDecoration
+                       ;; Background color lerps slightly towards primary on press
+                       .color (m/Color.lerp 
+                               surfaceVariant 
+                               (m/Color.lerp surfaceVariant primary 0.2) 
+                               (.value press-ctrl))
+                       .borderRadius (m/BorderRadius.all (m/Radius.circular 12))
+                       ;; Border color lerps based on the breathing animation controller
+                       .border (if has-content? 
+                                 (m/BorderLine.all 
+                                  .color (m/Color.lerp 
+                                          (primary .withOpacity 0.3) 
+                                          primary 
+                                          (.value breath-ctrl))
+                                  .width 2.0)
+                                 (m/BorderLine.all .color (outline .withOpacity 0.5))))
+          .child (m/Column
+                  .mainAxisAlignment m/MainAxisAlignment.spaceBetween
+                  .children 
+                  [(m/Column
+                    .children [(m/Icon (if has-content? m/Icons.sticky_note_2 icon) 
+                                       .size 22 
+                                       .color (if has-content? primary onSurfaceVariant))
+                               (m/SizedBox .height 12)
+                               (text/text-block 
+                                {:text (if has-content? val label) 
+                                 :style (bodyMedium .copyWith 
+                                         .color (if has-content? primary onSurfaceVariant)
+                                         .fontWeight (if has-content? m/FontWeight.bold m/FontWeight.normal))})])
+                   
+                   ;; Clear button (X) visible only when there is content
+                   (when has-content?
+                     (m/GestureDetector
+                      .onTap (fn [] 
+                               (when haptic? (m/HapticFeedback.selectionClick))
+                               (reset! state-atom "")) 
+                      .child (m/Padding
+                              .padding (m/EdgeInsets.only .top 10)
+                              .child (m/Icon m/Icons.cancel .size 18 .color (primary .withOpacity 0.7)))))])))))))))
