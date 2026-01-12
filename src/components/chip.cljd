@@ -1,0 +1,65 @@
+(ns components.chip
+  (:require 
+   ["package:flutter/material.dart" :as m]
+   ["package:flutter/services.dart" :as s]
+   ["package:mongol/mongol.dart" :as mgl]
+   [cljd.flutter :as f]))
+
+(defn filter-chip
+  "High-performance, theme-aware, configurable haptic feedback general-purpose Mongolian Chip"
+  [id label state-atom & {:as opts}]
+  (f/widget
+    :inline
+    ;; Use :get syntax to directly destructure Theme fields
+    :get {{{:flds [primaryContainer onPrimaryContainer 
+                  surfaceVariant onSurfaceVariant 
+                  primary onSurface]} .-colorScheme
+           {:flds [labelLarge]} .-textTheme} m/Theme}
+    
+    ;; Merge config: default haptic? is false
+    :let [cfg (merge {:active-color        primaryContainer
+                      :active-text-color   onPrimaryContainer
+                      :inactive-color      surfaceVariant
+                      :inactive-text-color onSurfaceVariant
+                      :disabled-color      (.withOpacity onSurface 0.12)
+                      :font-size           16.0
+                      :max-select          3
+                      :haptic?             false} ; Default haptic feedback disabled
+                     opts)]
+    
+    ;; Precisely watch state changes
+    :watch [{:keys [selected disabled]} 
+            (f/sub state-atom 
+              (fn [m]
+                (let [cnt (count (filter val m))]
+                  {:selected (get m id false)
+                   :disabled (and (>= (:max-select cfg) 0) 
+                                  (>= cnt (:max-select cfg)) 
+                                  (not (get m id)))})))]
+    
+    (m/GestureDetector
+      .onTap (when-not disabled 
+               #(do 
+                  ;; If haptic is configured, trigger light vibration
+                  (when (:haptic? cfg) (s/HapticFeedback.lightImpact))
+                  (swap! state-atom update id (fnil not false)))))
+    
+    (m/AnimatedContainer
+      .duration (m/Duration .milliseconds 200)
+      .margin (m/EdgeInsets.all 4)
+      .padding (m/EdgeInsets.symmetric .horizontal 12 .vertical 10)
+      .decoration (m/BoxDecoration
+                    .color (cond 
+                             selected (:active-color cfg)
+                             disabled (:disabled-color cfg)
+                             :else (:inactive-color cfg))
+                    .borderRadius (m/BorderRadius.circular 8)
+                    .border (m/Border.all 
+                              .color (if selected primary m/Colors.transparent)))
+      .child (mgl/MongolText 
+               label
+               .style (.copyWith labelLarge
+                        .color (if selected 
+                                 (:active-text-color cfg) 
+                                 (:inactive-text-color cfg))
+                        .fontSize (:font-size cfg))))))

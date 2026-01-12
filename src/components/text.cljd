@@ -1,0 +1,26 @@
+(ns components.text
+  (:require 
+   ["package:flutter/material.dart" :as m]
+   ["package:mongol/mongol.dart" :as mgl]
+   [cljd.flutter :as f]))
+
+
+(defn text-block
+  "Auto vertical layout, supports block selection, supports Focus highlighting"
+  [{:keys [text style is-focused on-tap]}]
+  (f/widget
+   :let [base-style (m/TextStyle
+                     .fontSize 16
+                     .fontFamily "OyunQaganTig"
+                     .height 1.6)
+         ;; TextStyle is not a map, use copyWith/merge chaining
+         final-style (-> base-style
+                         (cond-> is-focused
+                           (.copyWith .color m/Colors.blue.shade300))
+                         (.merge style))]
+   (m/GestureDetector
+    .onTap on-tap
+    .child (mgl/MongolText
+            text
+            .style final-style
+            .textAlign mgl/MongolTextAlign.top))))

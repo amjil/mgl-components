@@ -1,0 +1,21 @@
+(ns components.layout
+  (:require 
+    ["package:flutter/material.dart" :as m]
+    [cljd.flutter :as f]))
+
+(defn row-layout
+  "Row-first page base container. 
+   side-row-position can be :left (default) or :right"
+  [{:keys [main-row side-row side-row-position] 
+    :or {side-row-position :left}}]
+  (f/widget
+    (m/Row
+     .mainAxisSize m/MainAxisSize.max
+     .crossAxisAlignment m/CrossAxisAlignment.stretch
+     .mainAxisAlignment m/MainAxisAlignment.spaceAround
+     .children
+     (let [side (or side-row (m/SizedBox))
+           main (m/Expanded .child main-row)]
+      (if (= side-row-position :right)
+        [main side]  ; Main content first, sidebar second
+        [side main]))))) ; Sidebar first, main content second
