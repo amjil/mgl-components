@@ -1,0 +1,74 @@
+(ns components.bottom-sheet
+  (:require
+   [cljd.flutter :as f]
+   ["package:flutter/material.dart" :as m]
+   ["package:mongol/mongol.dart" :as mgl]))
+
+(defn bottom-sheet
+  "Themed vertical bottom sheet menu, correctly destructures theme inside builder"
+  [context items & {:keys [height-factor min-height border-radius
+                           show-handle? layout-mode]
+                    :or {height-factor 0.4
+                         min-height 250.0
+                         border-radius 28.0
+                         show-handle? true
+                         layout-mode :scroll}}]
+  (m/showModalBottomSheet
+   :context context
+   :backgroundColor m.Colors/transparent
+   :isScrollControlled true
+   :builder
+   (fn [context]
+     ;; Core fix: f/widget wraps inside builder, destructures Theme
+     (f/widget
+      :get {{{:flds [surface onSurface onSurfaceVariant primary outline]} .-colorScheme
+             {:flds [titleSmall labelMedium]} .-textTheme} m/Theme
+            {{:flds [height]} .-size} m/MediaQuery}
+      :let [final-height (max (* height height-factor) min-height)]
+      (m/SafeArea
+       :child
+       (m/Container
+        .height final-height
+        .decoration (m/BoxDecoration
+                     .color surface
+                     .borderRadius (m/BorderRadius.vertical .top (m/Radius.circular border-radius))
+                     .border (m/Border.all .color outline .width 0.5))
+        :child
+        (m/Column
+         .children
+         [(when show-handle?
+            (m/Container .width 32.0 .height 4.0
+                         .margin (m/EdgeInsets.symmetric .vertical 16.0)
+                         .decoration (m/BoxDecoration
+                                      .color onSurfaceVariant
+                                      .borderRadius (m/BorderRadius.all (m/Radius.circular 10.0)))))
+          (m/Expanded
+           .child
+           (let [render-item
+                 (fn [{:keys [type title icon on-tap]}]
+                   (if (= type :header)
+                     ;; Group header
+                     (m/Padding
+                      :padding (m/EdgeInsets.symmetric .horizontal 20.0 .vertical 12.0)
+                      :child (m/Row
+                              :mainAxisSize m.MainAxisSize/min
+                              :children [(m/Container .width 3.0 .height 30.0 .color primary)
+                                         (m/SizedBox .width 10.0)
+                                         (mgl/MongolText title :style (.copyWith titleSmall .color primary .fontWeight m/FontWeight.bold))]))
+                     ;; Action button
+                     (m/InkWell
+                      .onTap (fn [] (when on-tap (on-tap)) (m/Navigator.pop context))
+                      .child (m/Container
+                              .padding (m/EdgeInsets.all 16.0)
+                              .child (m/Column
+                                      .mainAxisSize m/MainAxisSize.min
+                                      :children [(m/Icon icon .color onSurface)
+                                                 (m/SizedBox .height 10.0)
+                                                 (mgl/MongolText title :style (.copyWith labelMedium .color onSurface))])))))]
+             (if (= layout-mode :grid)
+               (m/SingleChildScrollView
+                .scrollDirection m/Axis.horizontal
+                .child (m/Wrap .children (map render-item items)))
+               (m/ListView
+                .scrollDirection m/Axis.horizontal
+                .children (map render-item items)))))])))))))
