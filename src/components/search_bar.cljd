@@ -1,6 +1,7 @@
 (ns components.search-bar
   (:require 
    ["package:flutter/material.dart" :as m]
+   ["package:flutter/services.dart" :as s]
    [cljd.flutter :as f]
    [components.text :as text]))
 
@@ -16,11 +17,11 @@
    :managed [;; Controller for the breathing border effect
              breath-ctrl (m/AnimationController
                            .vsync vsync
-                           .duration (m/Duration .milliseconds 1500))
+                           .duration (dart:core/Duration .milliseconds 1500))
              ;; Controller for the press-to-scale effect
              press-ctrl (m/AnimationController
                           .vsync vsync
-                          .duration (m/Duration .milliseconds 120))]
+                          .duration (dart:core/Duration .milliseconds 120))]
    :watch [val state-atom]
    
    ;; Official Pattern: bg-watcher handles animation lifecycle based on state changes
@@ -33,18 +34,20 @@
 
    :let [has-content? (not (empty? val))
          ;; Define the scaling tween for the press effect
-         scale-anim (m/Tween .begin 1.0 .end 0.95
-                     .animate (m/CurvedAnimation .parent press-ctrl .curve m/Curves.easeInOut))]
+         scale-anim (.animate (m/Tween .begin 1.0 .end 0.95)
+                              (m/CurvedAnimation .parent press-ctrl .curve m/Curves.easeInOut))]
    
    (m/GestureDetector
     .onTapDown (fn [_] 
                  (.forward press-ctrl)
-                 (when haptic? (m/HapticFeedback.lightImpact)))
+                 (when haptic? (s/HapticFeedback.lightImpact))
+                 nil)
     .onTapUp (fn [_] 
                (.reverse press-ctrl)
-               (when haptic? (m/HapticFeedback.mediumImpact))
-               (on-tap))
-    .onTapCancel (fn [] (.reverse press-ctrl))
+               (when haptic? (s/HapticFeedback.mediumImpact))
+               (on-tap)
+               nil)
+    .onTapCancel (fn [] (.reverse press-ctrl) nil)
     .child 
     (m/AnimatedBuilder
      ;; Listenable.merge allows one builder to react to multiple animation controllers
@@ -68,13 +71,13 @@
                        .borderRadius (m/BorderRadius.all (m/Radius.circular 12))
                        ;; Border color lerps based on the breathing animation controller
                        .border (if has-content? 
-                                 (m/BorderLine.all 
+                                 (m/Border.all 
                                   .color (m/Color.lerp 
-                                          (primary .withOpacity 0.3) 
+                                          (.withOpacity primary 0.3) 
                                           primary 
                                           (.value breath-ctrl))
                                   .width 2.0)
-                                 (m/BorderLine.all .color (outline .withOpacity 0.5))))
+                                 (m/Border.all .color (.withOpacity outline 0.5))))
           .child (m/Column
                   .mainAxisAlignment m/MainAxisAlignment.spaceBetween
                   .children 
@@ -85,16 +88,17 @@
                                (m/SizedBox .height 12)
                                (text/text-block 
                                 {:text (if has-content? val label) 
-                                 :style (bodyMedium .copyWith 
+                                 :style (.copyWith bodyMedium 
                                          .color (if has-content? primary onSurfaceVariant)
                                          .fontWeight (if has-content? m/FontWeight.bold m/FontWeight.normal))})])
                    
                    ;; Clear button (X) visible only when there is content
-                   (when has-content?
+                   (if has-content?
                      (m/GestureDetector
                       .onTap (fn [] 
-                               (when haptic? (m/HapticFeedback.selectionClick))
+                               (when haptic? (s/HapticFeedback.selectionClick))
                                (reset! state-atom "")) 
                       .child (m/Padding
                               .padding (m/EdgeInsets.only .top 10)
-                              .child (m/Icon m/Icons.cancel .size 18 .color (primary .withOpacity 0.7)))))])))))))))
+                              .child (m/Icon m/Icons.cancel .size 18 .color (.withOpacity primary 0.7))))
+                     (m/SizedBox.shrink))])))))))))

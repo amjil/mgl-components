@@ -80,8 +80,7 @@
                                                    (m/FadeTransition
                                                      .opacity animation
                                                      .child (m/ScaleTransition 
-                                                              .scale (m/Tween .begin 0.96 .end 1.0 
-                                                                              .animate animation)
+                                                              .scale (.animate (m/Tween .begin 0.96 .end 1.0) animation)
                                                               .child child)))
                               .child (m/Container 
                                        .key (m/ValueKey curr-idx)

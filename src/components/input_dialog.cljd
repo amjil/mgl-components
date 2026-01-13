@@ -16,7 +16,8 @@
     .flex 2
     .child 
     (m/Padding
-     .padding (m/EdgeInsets.only :left (tokens/space :s))
+     .padding (m/EdgeInsets.only .left (tokens/space :s))
+     .child
      (m/ListView
       .scrollDirection m/Axis.horizontal
       .children 
@@ -44,6 +45,7 @@
    :get {{{:flds [primary]} .-colorScheme} m/Theme}
    (m/Padding
     .padding (m/EdgeInsets.only :left (tokens/space :s))
+    .child
     (m/Column
      .mainAxisSize m/MainAxisSize.min
      .children
@@ -124,6 +126,7 @@
         .child
         (m/Padding
          .padding (m/EdgeInsets.symmetric :horizontal (tokens/space :m))
+         .child
          (m/Stack
           .children
           [(input-row-content

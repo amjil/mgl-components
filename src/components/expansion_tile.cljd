@@ -12,16 +12,16 @@
            indent selected] 
     :or {direction :right
          initially-expanded false
-         duration (m/Duration. .milliseconds 250)
-         curve m.Curves/easeOutQuart
-         title-padding (m.EdgeInsets/all 12)
+         duration (dart:core/Duration. .milliseconds 250)
+         curve m/Curves.easeOutQuart
+         title-padding (m/EdgeInsets.all 12)
          indent 24.0
          selected false}}]
   (let [internal-state (atom initially-expanded)
         is-hovered (atom false)]
     (f/widget
       ;; Use the provided destructuring syntax: extract colorScheme and textTheme from Theme
-      :get {{{:flds [primary onSurface surface outline variantOutline]} .-colorScheme
+      :get {{{:flds [primary onSurface outline]} .-colorScheme
              {:flds [bodyLarge]} .-textTheme} m/Theme}
       :vsync vsync
       :managed [controller (m/AnimationController.
@@ -59,12 +59,12 @@
                     .decoration (m/BoxDecoration. 
                                   .color curr-bg
                                   .border (when selected
-                                            (m.Border/only .left (m.BorderSide. .color primary .width 3.0))))
+                                            (m/Border .left (m/BorderSide .color primary .width 3.0))))
                     .child (m/Column. 
                              .mainAxisSize m/MainAxisSize.min
                              .children [(m/RotationTransition.
-                                          .turns (.drive (m/Tween. .begin 0.0 .end 0.25) 
-                                                         (m/CurvedAnimation. .parent controller .curve curve))
+                                          .turns (.drive (m/CurvedAnimation. .parent controller .curve curve)
+                                                         (m/Tween. .begin 0.0 .end 0.25))
                                           .child (m/Icon. m.Icons/chevron_right .size 18 .color curr-content-color))
                                         (m/SizedBox. .height 8)
                                         (m/DefaultTextStyle.
@@ -77,17 +77,17 @@
            .axis (if (contains? #{:left :right} direction) m/Axis.horizontal m/Axis.vertical)
            .axisAlignment (case direction (:left :up) -1.0 1.0)
            .child (m/Container.
-                    .padding (m.EdgeInsets/only .top indent)
+                    .padding (m/EdgeInsets.only .top indent)
                     .child (m/Stack. 
                              .children
                              [(m/Positioned.
                                  .top 0 .bottom 0 .left 12 
                                  .child (m/Container. .width 1.2 .color (.withOpacity (or outline primary) 0.3)))
                               (m/Padding.
-                                .padding (m.EdgeInsets/only .left 20) 
-                                .child (if (contains? #{:left :right} direction)
-                                         (m/Row. .crossAxisAlignment m/CrossAxisAlignment.start .children children)
-                                         (m/Column. .crossAxisAlignment m/CrossAxisAlignment.start .children children)))])))]))))
+                               .padding (m/EdgeInsets.only .left 20)
+                               .child (if (contains? #{:left :right} direction)
+                                        (m/Row. .crossAxisAlignment m/CrossAxisAlignment.start .children children)
+                                        (m/Column. .crossAxisAlignment m/CrossAxisAlignment.start .children children)))])))]))))
 
 ;; --- Child component: Also supports theming ---
 ;; (defn menu-child [label active? on-tap]

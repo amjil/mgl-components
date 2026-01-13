@@ -9,7 +9,6 @@
   "High-performance, theme-aware, configurable haptic feedback general-purpose Mongolian Chip"
   [id label state-atom & {:as opts}]
   (f/widget
-    :inline
     ;; Use :get syntax to directly destructure Theme fields
     :get {{{:flds [primaryContainer onPrimaryContainer 
                   surfaceVariant onSurfaceVariant 
@@ -45,7 +44,7 @@
                   (swap! state-atom update id (fnil not false)))))
     
     (m/AnimatedContainer
-      .duration (m/Duration .milliseconds 200)
+      .duration (dart:core/Duration .milliseconds 200)
       .margin (m/EdgeInsets.all 4)
       .padding (m/EdgeInsets.symmetric .horizontal 12 .vertical 10)
       .decoration (m/BoxDecoration
