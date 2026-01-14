@@ -7,7 +7,8 @@
    [virtual-keyboard.keyboard :as keyboard]
    [components.tokens :as tokens]
    [components.text :as text]
-   [components.text-field :as text-field]))
+   [components.text-field :as text-field]
+   [components.dialog :as dialog]))
 
 ;; 1. Results list view component (destructures theme internally)
 (defn results-list-view [{:keys [items on-tap]}]
@@ -107,41 +108,50 @@
     (f/widget
      :context ctx
      :managed [controller (m/TextEditingController .text initial-text)]
-     :get {{{:flds [surface]} .-colorScheme} m/Theme}
-     :let [h (-> (m/MediaQuery.of ctx) .-size .-height)]
-     (m/Dialog
-      .insetPadding m/EdgeInsets.zero
-      .backgroundColor surface)
-     (m/Container
-      .height (* h 0.9))
-     (m/Column
-      .children
-      [;; Top actions
-       (m/Align
-        .alignment m/Alignment.topRight
-        .child (m/IconButton
-                .icon (m/Icon m/Icons.close)
-                .onPressed #(-> (m/Navigator.of ctx) (.pop))))
-
-       ;; Middle stack area
-       (m/Expanded
+     :get {{{:flds [surface onSurface]} .-colorScheme} m/Theme}
+     (dialog/vertical-custom-dialog
+      {:inset-padding m/EdgeInsets.zero
+       :height-factor 0.9
+       :width-factor 1
+       :decoration (m/BoxDecoration
+                    .color surface
+                    .borderRadius (m/BorderRadius.all (m/Radius.circular 28))
+                    .boxShadow [(m/BoxShadow 
+                                 .color (-> onSurface (.withOpacity 0.08))
+                                 .blurRadius (tokens/space :l)
+                                 .offset (m/Offset 0 10))])
+       :child
+       (m/Container
+        .color surface
         .child
-        (m/Padding
-         .padding (m/EdgeInsets.symmetric :horizontal (tokens/space :m))
-         .child
-         (m/Stack
-          .children
-          [(input-row-content
-            {:controller controller
-             :hint hint
-             :results-data results-data
-             :on-changed (fn [t] (reset! input-text-atom t) (when on-changed (on-changed t)))
-             :on-result-tap (fn [i] (on-result-tap i controller input-text-atom))
-             :on-submit #(on-submit @input-text-atom)})
+        (m/Column
+         .children
+         [;; Top actions
+          (m/Align
+           .alignment m/Alignment.topRight
+           .child (m/IconButton
+                   .icon (m/Icon m/Icons.close)
+                   .onPressed #(-> (m/Navigator.of ctx) (.pop))))
 
-           (keyboard/candidates nil)])))
+          ;; Middle stack area
+          (m/Expanded
+           .child
+           (m/Padding
+            .padding (m/EdgeInsets.symmetric :horizontal (tokens/space :m))
+            .child
+            (m/Stack
+             .children
+             [(input-row-content
+               {:controller controller
+                :hint hint
+                :results-data results-data
+                :on-changed (fn [t] (reset! input-text-atom t) (when on-changed (on-changed t)))
+                :on-result-tap (fn [i] (on-result-tap i controller input-text-atom))
+                :on-submit #(on-submit @input-text-atom)})
 
-       ;; Bottom keyboard
-       (m/SizedBox .height (tokens/space :m))
-       (keyboard/keyboard
-        {:custom-fns custom-keyboard-fns})]))))
+              (keyboard/candidates nil)])))
+
+          ;; Bottom keyboard
+          (m/SizedBox .height (tokens/space :m))
+          (keyboard/keyboard
+           {:custom-fns custom-keyboard-fns})]))}))))
