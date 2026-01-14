@@ -1,0 +1,70 @@
+(ns components.dialog
+  (:require
+   ["package:flutter/material.dart" :as m]
+   ["package:mongol/mongol.dart" :as mgl]
+   [cljd.flutter :as f]
+   [components.tokens :as tokens]))
+
+(defn vertical-custom-dialog
+  "Highly customizable vertical dialog with optimized performance"
+  [{:keys [title body actions child
+           width-factor height-factor 
+           decoration shape inset-padding]
+    :or {width-factor 0.85 
+         height-factor 0.6
+         inset-padding (m/EdgeInsets.symmetric .horizontal (tokens/space :m))
+         shape (m/RoundedRectangleBorder .borderRadius (m/BorderRadius.all (m/Radius.circular 12)))}}]
+  (f/widget
+   :get {{{:flds [width height]} .-size} m/MediaQuery}
+   :get {{{:flds [surface onSurface surfaceVariant outlineVariant]} .-colorScheme
+          {:flds [titleLarge]} .-textTheme} m/Theme}
+   :let [actual-decoration 
+         (or decoration
+             (m/BoxDecoration
+              .color surface
+              .borderRadius (m/BorderRadius.all (m/Radius.circular 28))
+              .border (m/Border.all .color outlineVariant .width 0.5)
+              .boxShadow [(m/BoxShadow 
+                            .color (-> onSurface (.withOpacity 0.08))
+                            .blurRadius (tokens/space :l)
+                            .offset (m/Offset 0 10))]))]
+   (m/Dialog
+    .insetPadding inset-padding
+    .shape shape
+    .backgroundColor m/Colors.transparent
+    .child 
+    (m/Container
+     .width (* width width-factor)
+     .height (* height height-factor)
+     .decoration actual-decoration
+     .child (if child 
+              child ; If user provides custom layout, use it directly without executing the logic below
+              (m/Padding
+               .padding (m/EdgeInsets.all (tokens/space :l))
+               .child
+               (m/Row
+                .crossAxisAlignment m/CrossAxisAlignment.stretch
+                .children
+                [;; 1. Title area
+                 (m/Container
+                  .alignment m/Alignment.topCenter
+                  .padding (m/EdgeInsets.only .right (tokens/space :l))
+                  .decoration (m/BoxDecoration 
+                               .border (m/Border .right (m/BorderSide .color surfaceVariant .width 1.5)))
+                  .child (mgl/MongolText title
+                                         .style (.copyWith titleLarge 
+                                                           .color onSurface
+                                                           .fontWeight m/FontWeight.bold)))
+                 ;; 2. Content area
+                 (m/Expanded
+                  .child (m/Padding
+                          .padding (m/EdgeInsets.symmetric .horizontal (tokens/space :l))
+                          .child body))
+                 ;; 3. Action buttons area
+                 (m/Container
+                  .padding (m/EdgeInsets.only .left (tokens/space :l))
+                  .child (m/Column
+                          .mainAxisAlignment m/MainAxisAlignment.end
+                          .children (map (fn [act] 
+                                           (m/Padding .padding (m/EdgeInsets.only .top (tokens/space :l)) .child act)) 
+                                         actions)))])))))))

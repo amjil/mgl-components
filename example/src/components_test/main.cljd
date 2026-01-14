@@ -14,6 +14,7 @@
    [components.tab-layout :as tab-layout]
    [components.text-field :as text-field]
    [components.toast :as toast]
+   [components.dialog :refer [vertical-custom-dialog]]
 ;;    [components.tooltip :as tooltip]
    ))
 
@@ -22,6 +23,7 @@
   [{:name "Bottom Sheet" :key "bottom_sheet" :icon m/Icons.call_to_action}
    {:name "Card" :key "card" :icon m/Icons.card_membership}
    {:name "Chip" :key "chip" :icon m/Icons.label}
+   {:name "Dialog" :key "dialog" :icon m/Icons.bookmark}
    {:name "Expansion Tile" :key "expansion_tile" :icon m/Icons.expand_more}
    {:name "Input Dialog" :key "input_dialog" :icon m/Icons.input}
    {:name "Search Bar" :key "search_bar" :icon m/Icons.search}
@@ -357,6 +359,90 @@
 ;;                                    .borderRadius (m/BorderRadius.circular 8))
 ;;                        .child (m/Text "Or me" .style (m/TextStyle .color m/Colors.white)))})])))))
 
+(defn dialog-demo-page []
+  (f/widget
+   :context ctx
+   :let [;; --- Scenario 1: Classic Style (using default layout and decoration) ---
+         show-ancient-dialog (fn []
+                               (m/showDialog
+                                .context ctx
+                                .builder
+                                (fn [c]
+                                  (vertical-custom-dialog
+                                   {:title "Classic Style"
+                                    :width-factor 0.7
+                                    :height-factor 0.5
+                                    :body (mgl/MongolText "The evening clouds fly with the lonely swan, the autumn water shares the same color with the sky. Please savor the profound meaning within.")
+                                    :actions [(m/TextButton .onPressed #(m/Navigator.pop c) .child (mgl/MongolText "Got it"))]}))))
+
+         ;; --- Scenario 2: Modern Theme (custom Decoration and buttons) ---
+         show-modern-dialog (fn []
+                              (m/showDialog
+                               .context ctx
+                               .builder
+                               (fn [c]
+                                 (f/widget
+                                  :get {{{:flds [primaryContainer onPrimaryContainer outlineVariant]} .-colorScheme} m/Theme}
+                                  (vertical-custom-dialog
+                                   {:title "Settings"
+                                    :width-factor 0.8
+                                    :decoration (m/BoxDecoration
+                                                 .color primaryContainer
+                                                 .borderRadius (m/BorderRadius.all (m/Radius.circular 20))
+                                                 .border (m/Border.all .color outlineVariant))
+                                    :body (m/Column
+                                           .children [(mgl/MongolText "Enable dark vertical mode?"
+                                                                      .style (m/TextStyle .color onPrimaryContainer))
+                                                      (m/Switch .value true .onChanged (fn [_]))])
+                                    :actions [(m/IconButton .icon (m/Icon m/Icons.check) .onPressed #(m/Navigator.pop c))]})))))
+
+         ;; --- Scenario 3: Fully Custom (using :child to bypass default layout) ---
+         show-full-custom-dialog (fn []
+                                   (m/showDialog
+                                    .context ctx
+                                    .builder
+                                    (fn [c]
+                                      (vertical-custom-dialog
+                                       {:width-factor 0.9
+                                        :height-factor 0.4
+                                        :inset-padding (m/EdgeInsets.all 30)
+                                        ;; Use :child to completely rewrite the interior, no longer has left-center-right columns
+                                        :child (m/Stack
+                                                .children
+                                                [(m/Positioned .top 10 .right 10
+                                                               .child (m/Icon m/Icons.bookmark .color m/Colors.red .size 40))
+                                                 (m/Center
+                                                  .child (m/Row
+                                                          .mainAxisAlignment m/MainAxisAlignment.center
+                                                          .children [(m/Icon m/Icons.campaign .size 50)
+                                                                     (m/SizedBox .width 20)
+                                                                     (mgl/MongolText "This is a fully custom layout announcement"
+                                                                                     .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
+                                                                     (mgl/MongolTextButton .onPressed #(m/Navigator.pop c) .child (mgl/MongolText "Close"))]))])}))))]
+   (m/Scaffold
+    .appBar (m/AppBar .title (m/Text "Vertical Dialog Examples"))
+    .body
+    (m/Center
+     .child
+     (m/Column
+      .mainAxisSize m/MainAxisSize.min
+      .children
+      [(m/ElevatedButton
+        .onPressed show-ancient-dialog
+        .child (m/Text "1. Classic Style Dialog"))
+
+       (m/SizedBox .height 20)
+
+       (m/ElevatedButton
+        .onPressed show-modern-dialog
+        .child (m/Text "2. Modern Theme"))
+
+       (m/SizedBox .height 20)
+
+       (m/ElevatedButton
+        .onPressed show-full-custom-dialog
+        .child (m/Text "3. Fully Custom Layout"))])))))
+
 (defn bottom-sheet-demo-page []
   (f/widget
    :context ctx
@@ -402,6 +488,7 @@
     "bottom_sheet" bottom-sheet-demo-page
     "card" card-demo-page
     "chip" chip-demo-page
+    "dialog" dialog-demo-page
     "expansion_tile" expansion-tile-demo-page
     "input_dialog" input-dialog-demo-page
     "search_bar" search-bar-demo-page
