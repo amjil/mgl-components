@@ -6,7 +6,7 @@
     ["package:flutter_styled_toast/flutter_styled_toast.dart" :as st]))
 
 ;; =============================================================================
-;; 1. 静态配置 (Config)
+;; 1. Static Configuration (Config)
 ;; =============================================================================
 
 (def ^:private theme-config
@@ -23,7 +23,7 @@
    
 
 ;; =============================================================================
-;; 2. 内部 UI 组件 (Private UI)
+;; 2. Private UI Components (Private UI)
 ;; =============================================================================
 
 (defn- toast-ui [msg type dismiss-fn]
@@ -69,17 +69,17 @@
                                                                .fontWeight m/FontWeight.bold)))])))))))
 
 ;; =============================================================================
-;; 3. 公开 API (Public API)
+;; 3. Public API (Public API)
 ;; =============================================================================
 
 (defn show
-  "通用 Toast 调用函数
+  "General Toast call function
    options:
    :type          - :success, :error, :warning, :info
    :pos           - StyledToastPosition (center, bottom, top)
    :anim          - :slide-right, :rotate, :scale, :fade
-   :dur           - 持续秒数 (manual-close? 为 false 时有效)
-   :manual-close? - 是否需要手动点击关闭 (如果是，则不会自动消失)"
+   :dur           - Duration in seconds (effective when manual-close? is false)
+   :manual-close? - Whether manual click to close is required (if true, won't auto-dismiss)"
   [ctx msg & {:keys [type pos anim dur manual-close?]
               :or {type :info
                    pos  st/StyledToastPosition.center
@@ -93,15 +93,15 @@
       .position pos
       .animation (get anim-config anim st/StyledToastAnimation.fade)
       .reverseAnimation (get anim-config anim st/StyledToastAnimation.fade)
-      ;; 逻辑控制
+      ;; Logic control
       .duration (if manual-close? (dart:core/Duration .seconds 0) (dart:core/Duration .seconds dur))
       .isIgnoring false
-      ;; 动画精修
+      ;; Animation refinement
       .curve m/Curves.elasticOut
       .reverseCurve m/Curves.easeIn
       .animDuration (dart:core/Duration .milliseconds 800))))
 
-;; --- 语义化便捷调用 ---
+;; --- Semantic convenience calls ---
 
 (defn success
   ([ctx msg] (show ctx msg :type :success :anim :slide-right))
