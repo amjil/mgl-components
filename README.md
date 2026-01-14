@@ -16,9 +16,13 @@ A ClojureDart component library for Flutter applications with Mongolian language
 - **Chip** - Filter chips with selection state management and haptic feedback
 - **Expansion Tile** - Expandable/collapsible content sections
 - **Input Dialog** - Text input dialogs with validation
+- **Layout** - Row-first layout container for side-by-side content arrangement
 - **Search Bar** - Search input with clear functionality
 - **Select** - Dropdown selection menus with grouping support
 - **Tab Layout** - Tab navigation component
+- **Text** - Vertical Mongolian text display with focus highlighting and tap support
+- **Text Field** - Text input field with vertical Mongolian text support and placeholder hints
+- **Toast** - Toast notifications with multiple types (success, error, warning, info) and animations
 - **Tooltip** - Contextual tooltips
 - **Design Tokens** - Spacing, typography, and color tokens for consistent design
 
@@ -135,6 +139,70 @@ Dropdown selection component with grouping and theming support.
           {:value "2" :label (m/Text "Option 2") :group "Group A"}]
   :value "1"
   :on-changed #(print "Selected:" %)})
+```
+
+### Text Field
+
+Text input field component with vertical Mongolian text support, placeholder hints, and cursor positioning.
+
+```clojure
+(def controller (m/TextEditingController))
+
+(text-field/text-field
+ {:controller controller
+  :hint "Enter text"
+  :on-changed #(print "Text changed:" %)
+  :max-lines 1
+  :autofocus true})
+```
+
+### Toast
+
+Toast notification component with multiple types and animation support.
+
+```clojure
+;; Success toast
+(toast/success context "Operation successful!")
+
+;; Error toast (manual close)
+(toast/error context "An error occurred")
+
+;; Warning toast
+(toast/warn context "Please note")
+
+;; Info toast
+(toast/info context "Information")
+
+;; Custom toast
+(toast/show context "Custom message"
+            :type :success
+            :pos st/StyledToastPosition.bottom
+            :anim :slide-right
+            :dur 5
+            :manual-close? false)
+```
+
+### Text
+
+Vertical Mongolian text display component with focus highlighting and tap support.
+
+```clojure
+(text/text-block
+ {:text "Mongolian text"
+  :is-focused true
+  :on-tap #(print "Text tapped")
+  :style (m/TextStyle .fontSize 18 .color m/Colors.black)})
+```
+
+### Layout
+
+Row-first layout container for arranging side-by-side content.
+
+```clojure
+(layout/row-layout
+ {:main-row (m/Container .child (m/Text "Main content"))
+  :side-row (m/Container .child (m/Text "Sidebar"))
+  :side-row-position :left})
 ```
 
 ## Design Tokens
