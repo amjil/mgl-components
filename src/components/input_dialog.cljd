@@ -6,7 +6,8 @@
    [cljd.flutter :as f]
    [virtual-keyboard.keyboard :as keyboard]
    [components.tokens :as tokens]
-   [components.text :as text]))
+   [components.text :as text]
+   [components.text-field :as text-field]))
 
 ;; 1. Results list view component (destructures theme internally)
 (defn results-list-view [{:keys [items on-tap]}]
@@ -69,19 +70,20 @@
      (m/Expanded
       .flex 1
       .child (m/Container
-              .decoration (m/BoxDecoration 
-                           .border (m/Border.all .color outlineVariant) 
+              .padding (m/EdgeInsets.all (tokens/space :s))
+              .decoration (m/BoxDecoration
+                           .border (m/Border.all .color outlineVariant)
                            .borderRadius (m/BorderRadius.circular 8))
-              .child (mgl/MongolTextField
-                      .controller controller
-                      .autofocus true
-                      .maxLines nil
-                      .style (m/TextStyle .color onSurface)
-                      .decoration (m/InputDecoration 
-                                   .border m/InputBorder.none 
-                                   .contentPadding (m/EdgeInsets.all (tokens/space :s))
-                                   .hintText hint)
-                      .onChanged on-changed)))
+              .child (text-field/text-field
+                      {:controller controller
+                       :hint hint
+                       :autofocus true
+                       :max-lines nil
+                       :style (m/TextStyle .color onSurface)
+                       :decoration (m/InputDecoration
+                                    .border m/InputBorder.none
+                                    .contentPadding (m/EdgeInsets.all (tokens/space :s)))
+                       :on-changed on-changed})))
 
      ;; Results list
      (if (seq results-data)
