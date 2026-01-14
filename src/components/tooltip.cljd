@@ -15,8 +15,8 @@
    :max-width 400.0
    :max-height 200.0
    :shadow {:color 0.3 :blur 8.0 :offset [0 2.0] :spread 1.0}
-   :animation {:duration 200}
    :position :bottom})
+
 
 ;; --- Bubble Painter Class ---
 ;; Use Path to draw rounded rectangle with arrow in one pass, achieving perfect shadow and unified color

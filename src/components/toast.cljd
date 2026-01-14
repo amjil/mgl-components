@@ -1,0 +1,116 @@
+(ns components.toast
+  (:require
+    [cljd.flutter :as f]
+    ["package:flutter/material.dart" :as m]
+    ["package:mongol/mongol.dart" :as mgl]
+    ["package:flutter_styled_toast/flutter_styled_toast.dart" :as st]))
+
+;; =============================================================================
+;; 1. 静态配置 (Config)
+;; =============================================================================
+
+(def ^:private theme-config
+  {:success {:bg :primaryContainer :fg :onPrimaryContainer :icon m/Icons.check_circle}
+   :error   {:bg :error            :fg :onError            :icon m/Icons.error}
+   :warning {:bg :tertiaryContainer :fg :onTertiaryContainer :icon m/Icons.warning}
+   :info    {:bg :secondaryContainer :fg :onSecondaryContainer :icon m/Icons.info}})
+
+(def ^:private anim-config
+  {:slide-right st/StyledToastAnimation.slideFromRight
+   :rotate      st/StyledToastAnimation.rotate
+   :scale       st/StyledToastAnimation.scale
+   :fade        st/StyledToastAnimation.fade})
+   
+
+;; =============================================================================
+;; 2. 内部 UI 组件 (Private UI)
+;; =============================================================================
+
+(defn- toast-ui [msg type dismiss-fn]
+  (let [{:keys [bg fg icon]} (get theme-config type (:info theme-config))]
+    (f/widget
+      :get {{{bg-color bg fg-color fg} .-colorScheme
+             texts .-textTheme} m/Theme}
+      (m/GestureDetector
+       .behavior m/HitTestBehavior.opaque
+       .onTap (fn []
+                (when dismiss-fn
+                  (dismiss-fn))
+                (dart:core/print "dismiss-fn")
+                nil)
+       .child
+       (m/Container
+        .padding (m/EdgeInsets.all 16)
+        .margin (m/EdgeInsets.symmetric .horizontal 20)
+        .decoration (m/BoxDecoration
+                     .color bg-color
+                     .borderRadius (m/BorderRadius.all (m/Radius.circular 16))
+                     .boxShadow [(m/BoxShadow .color (-> m/Colors.black (.withOpacity 0.15))
+                                              .blurRadius 12 .offset (m/Offset 0 6))])
+        .child (m/IntrinsicWidth
+                .child (m/Column
+                        .mainAxisSize m/MainAxisSize.min
+                        .crossAxisAlignment m/CrossAxisAlignment.center
+                        .children
+                        [(m/Row
+                          .mainAxisSize m/MainAxisSize.min
+                          .children (concat [(m/Icon icon .color fg-color .size 24)]
+                                            (if dismiss-fn
+                                              [(m/SizedBox .width 40)
+                                               (m/Icon m/Icons.close
+                                                       .color fg-color
+                                                       .size 16)]
+                                              [])))
+                         (m/SizedBox .height 12)
+                         (mgl/MongolText msg
+                                         .style (-> texts .-labelLarge
+                                                    (.copyWith .color fg-color
+                                                               .fontSize 16
+                                                               .fontWeight m/FontWeight.bold)))])))))))
+
+;; =============================================================================
+;; 3. 公开 API (Public API)
+;; =============================================================================
+
+(defn show
+  "通用 Toast 调用函数
+   options:
+   :type          - :success, :error, :warning, :info
+   :pos           - StyledToastPosition (center, bottom, top)
+   :anim          - :slide-right, :rotate, :scale, :fade
+   :dur           - 持续秒数 (manual-close? 为 false 时有效)
+   :manual-close? - 是否需要手动点击关闭 (如果是，则不会自动消失)"
+  [ctx msg & {:keys [type pos anim dur manual-close?]
+              :or {type :info
+                   pos  st/StyledToastPosition.center
+                   anim :slide-right
+                   dur  3
+                   manual-close? false}}]
+  (let [dismiss-fn #(st/dismissAllToast .showAnim true)]
+    (st/showToastWidget
+      (toast-ui msg type (when manual-close? dismiss-fn))
+      .context ctx
+      .position pos
+      .animation (get anim-config anim st/StyledToastAnimation.fade)
+      .reverseAnimation (get anim-config anim st/StyledToastAnimation.fade)
+      ;; 逻辑控制
+      .duration (if manual-close? (dart:core/Duration .seconds 0) (dart:core/Duration .seconds dur))
+      .isIgnoring false
+      ;; 动画精修
+      .curve m/Curves.elasticOut
+      .reverseCurve m/Curves.easeIn
+      .animDuration (dart:core/Duration .milliseconds 800))))
+
+;; --- 语义化便捷调用 ---
+
+(defn success
+  ([ctx msg] (show ctx msg :type :success :anim :slide-right))
+  ([ctx msg anim] (show ctx msg :type :success :anim anim)))
+
+(defn error
+  ([ctx msg] (show ctx msg :type :error :anim :rotate :manual-close? true))
+  ([ctx msg anim] (show ctx msg :type :error :anim anim :manual-close? true)))
+
+(defn warn [ctx msg] (show ctx msg :type :warning :anim :scale))
+
+(defn info [ctx msg] (show ctx msg :type :info :anim :fade))

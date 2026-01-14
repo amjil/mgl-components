@@ -2,6 +2,7 @@
   (:require
    ["package:flutter/material.dart" :as m]
    ["package:mongol/mongol.dart" :as mgl]
+   ["package:flutter_styled_toast/flutter_styled_toast.dart" :as st]
    [cljd.flutter :as f]
    [components.bottom-sheet :as bottom-sheet]
    [components.chip :as chip]
@@ -10,6 +11,8 @@
    [components.search-bar :as search-bar]
    [components.select :as select]
    [components.tab-layout :as tab-layout]
+   [components.text-field :as text-field]
+   [components.toast :as toast]
    [components.tooltip :as tooltip]))
 
 ;; Component list for the home page
@@ -21,6 +24,8 @@
    {:name "Search Bar" :key "search_bar" :icon m/Icons.search}
    {:name "Select" :key "select" :icon m/Icons.arrow_drop_down}
    {:name "Tab Layout" :key "tab_layout" :icon m/Icons.tab}
+   {:name "Text Field" :key "text_field" :icon m/Icons.text_fields}
+   {:name "Toast" :key "toast" :icon m/Icons.notifications}
    {:name "Tooltip" :key "tooltip" :icon m/Icons.info}])
 
 ;; Component card widget
@@ -40,7 +45,7 @@
                     .mainAxisSize m/MainAxisSize.min
                     .mainAxisAlignment m/MainAxisAlignment.center
                     .children
-                    [(m/Icon icon .size 48 .color primary)
+                    [(m/Icon icon .size 32 .color primary)
                      (m/SizedBox .height 12)
                      (mgl/MongolText
                       name
@@ -52,9 +57,9 @@
 ;; Demo pages for each component
 (defn chip-demo-page []
   (let [chip-state (atom {})
-        chip1 (chip/filter-chip "chip1" "ᠪᠠᠷᠢᠮᠲᠠ" chip-state)
-        chip2 (chip/filter-chip "chip2" "ᠲᠣᠬᠢᠷᠠᠭᠦᠯᠭᠡ" chip-state)
-        chip3 (chip/filter-chip "chip3" "ᠪᠢ" chip-state)]
+        chip1 (chip/filter-chip "chip1" "Baraant" chip-state)
+        chip2 (chip/filter-chip "chip2" "Ulaanbaatar" chip-state)
+        chip3 (chip/filter-chip "chip3" "Bilguun" chip-state)]
     (f/widget
      (m/Scaffold
       .appBar (m/AppBar .title (m/Text "Chip Demo"))
@@ -86,12 +91,12 @@
              [(mgl/MongolText "Expansion Tiles" .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
               (m/SizedBox .width 16)
               (expansion-tile/expansion-tile
-               {:title (mgl/MongolText "ᠪᠠᠷᠢᠮᠲᠠ")
+               {:title (mgl/MongolText "Baraant")
                 :children [(mgl/MongolText "Child content 1")
                            (mgl/MongolText "Child content 2")]})
               (m/SizedBox .width 8)
               (expansion-tile/expansion-tile
-               {:title (mgl/MongolText "ᠲᠣᠬᠢᠷᠠᠭᠦᠯᠭᠡ")
+               {:title (mgl/MongolText "Ulaanbaatar")
                 :children [(mgl/MongolText "More content here")]})]))))))
 
 (defn input-dialog-demo-page []
@@ -134,9 +139,9 @@
 (defn select-demo-page []
   (f/widget
    :let [selected-value (atom "option1")
-         items [{:value "option1" :label (mgl/MongolText "ᠪᠠᠷᠢᠮᠲᠠ")}
-                {:value "option2" :label (mgl/MongolText "ᠲᠣᠬᠢᠷᠠᠭᠦᠯᠭᠡ")}
-                {:value "option3" :label (mgl/MongolText "ᠪᠢ")}]]
+         items [{:value "option1" :label (mgl/MongolText "Baraant")}
+                {:value "option2" :label (mgl/MongolText "Ulaanbaatar")}
+                {:value "option3" :label (mgl/MongolText "Bilguun")}]]
 
    (m/Scaffold
     .appBar (m/AppBar .title (m/Text "Select Demo"))
@@ -169,13 +174,111 @@
    (m/Scaffold
     .appBar (m/AppBar .title (m/Text "Tab Layout Demo"))
     .body (tab-layout/sidebar-page
-           {:tabs [{:text "ᠨᠢᠢᠷ" :icon m/Icons.home}
-                   {:text "ᠠᠩᠭᠢᠯᠠᠯ" :icon m/Icons.category}
-                   {:text "ᠪᠢ" :icon m/Icons.person}]
+           {:tabs [{:text "Nir" :icon m/Icons.home}
+                   {:text "Angilal" :icon m/Icons.category}
+                   {:text "Bilguun" :icon m/Icons.person}]
             :contents [(m/Center .child (m/Text "Home Page"))
                        (m/Center .child (m/Text "Category Page"))
                        (m/Center .child (m/Text "Profile Page"))]
             :on-change (fn [idx] (println "Switched to tab:" idx))}))))
+
+(defn text-field-demo-page []
+  (let [controller1 (m/TextEditingController.)
+        controller2 (m/TextEditingController.)
+        controller3 (m/TextEditingController.)]
+    (f/widget
+     (m/Scaffold
+      .appBar (m/AppBar .title (m/Text "Text Field Demo"))
+      .body (m/Padding
+             .padding (m/EdgeInsets.all 16)
+             .child
+             (m/Row
+              .crossAxisAlignment m/CrossAxisAlignment.start
+              .children
+              [(mgl/MongolText "Text Fields" .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
+               (m/SizedBox .width 24)
+               (mgl/MongolText "Basic Text Field with Hint" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
+               (m/SizedBox .width 8)
+               (text-field/text-field
+                {:controller controller1
+                 :hint "Naran Bichig Bichig Bichig"
+                 :on-changed (fn [text] (println "Text changed:" text))})
+               (m/SizedBox .width 24)
+               (mgl/MongolText "Multi-line Text Field" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
+               (m/SizedBox .width 8)
+               (text-field/text-field
+                {:controller controller2
+                 :hint "Mongol Usughel"
+                 :max-lines 3
+                 :on-changed (fn [text] (println "Multi-line text changed:" text))})
+               (m/SizedBox .width 24)
+               (mgl/MongolText "Autofocus Text Field" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
+               (m/SizedBox .width 8)
+               (text-field/text-field
+                {:controller controller3
+                 :hint "Aatumaatal Altumaatal Altumaatal"
+                 :autofocus true
+                 :on-changed (fn [text] (println "Autofocus text changed:" text))})]))))))
+
+(defn toast-demo-page []
+  (f/widget
+   :context ctx
+   (m/Scaffold
+    .appBar (m/AppBar .title (m/Text "Toast Demo"))
+    .body (m/Padding
+           .padding (m/EdgeInsets.all 16)
+           .child
+           (m/SingleChildScrollView 
+            .child
+           (m/Column
+            .mainAxisAlignment m/MainAxisAlignment.center
+            .crossAxisAlignment m/CrossAxisAlignment.center
+            .children
+            [(mgl/MongolText "Toast Demo"
+                    .style (m/TextStyle .fontSize 24 .fontWeight m/FontWeight.bold))
+             (m/SizedBox .height 32)
+             (m/ElevatedButton
+              .onPressed (fn [] (toast/success ctx "Amjilan Amjilan Asharan!"))
+              .child (m/Text "Success Toast"))
+             (m/SizedBox .height 16)
+             (m/ElevatedButton
+              .onPressed (fn [] (toast/error ctx "Aldar Bayar!"))
+              .child (m/Text "Error Toast"))
+             (m/SizedBox .height 16)
+             (m/ElevatedButton
+              .onPressed (fn [] (toast/warn ctx "Aharhal Bayar!"))
+              .child (m/Text "Warning Toast"))
+             (m/SizedBox .height 16)
+             (m/ElevatedButton
+              .onPressed (fn [] (toast/info ctx "Medegdel Bayar!"))
+              .child (m/Text "Info Toast"))
+             (m/SizedBox .height 32)
+             (mgl/MongolText "Custom Options"
+                    .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
+             (m/SizedBox .height 16)
+             (m/ElevatedButton
+              .onPressed (fn [] (toast/show ctx "Baraant Bayar" 
+                                           :type :success 
+                                           :pos st/StyledToastPosition.top
+                                           :anim :rotate
+                                           :dur 5))
+              .child (m/Text "Top Rotate Animation (5s)"))
+             (m/SizedBox .height 16)
+             (m/ElevatedButton
+              .onPressed (fn [] (toast/show ctx "Ulaanbaatar Bayar"
+                                           :type :info
+                                           :pos st/StyledToastPosition.bottom
+                                           :anim :scale
+                                           :dur 2))
+              .child (m/Text "Bottom Scale Animation (2s)"))
+             (m/SizedBox .height 16)
+             (m/ElevatedButton
+              .onPressed (fn [] (toast/show ctx "Bilguun Bayar"
+                                           :type :warning
+                                           :pos st/StyledToastPosition.center
+                                           :anim :fade
+                                           :manual-close? true))
+              .child (m/Text "Manual Close Toast"))]))))))
 
 (defn tooltip-demo-page []
   (f/widget
@@ -192,7 +295,7 @@
                     .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
              (m/SizedBox .width 32)
              (tooltip/v-overlay-tooltip
-              {:message "ᠮᠣᠩᠭᠣᠯ ᠽᠢᠪ"
+              {:message "Mongol Click Tooltip"
                :haptic? true
                :child (m/Container
                        .padding (m/EdgeInsets.all 16)
@@ -217,10 +320,10 @@
                             (bottom-sheet/bottom-sheet
                              ctx
                              [{:type :header :title "Actions"}
-                              {:type :action :title "ᠪᠠᠷᠢᠮᠲᠠ" :icon m/Icons.home :on-tap (fn [] (println "Home tapped"))}
-                              {:type :action :title "ᠲᠣᠬᠢᠷᠠᠭᠦᠯᠭᠡ" :icon m/Icons.category :on-tap (fn [] (println "Category tapped"))}
+                              {:type :action :title "Baraant" :icon m/Icons.home :on-tap (fn [] (println "Home tapped"))}
+                              {:type :action :title "Ulaanbaatar" :icon m/Icons.category :on-tap (fn [] (println "Category tapped"))}
                               {:type :header :title "More"}
-                              {:type :action :title "ᠪᠢ" :icon m/Icons.person :on-tap (fn [] (println "Profile tapped"))}
+                              {:type :action :title "Bilguun" :icon m/Icons.person :on-tap (fn [] (println "Profile tapped"))}
                               {:type :action :title "Settings" :icon m/Icons.settings :on-tap (fn [] (println "Settings tapped"))}]
                              :height-factor 0.5
                              :show-handle? true
@@ -259,6 +362,8 @@
     "search_bar" search-bar-demo-page
     "select" select-demo-page
     "tab_layout" tab-layout-demo-page
+    "text_field" text-field-demo-page
+    "toast" toast-demo-page
     "tooltip" tooltip-demo-page
     (fn [] (m/Scaffold .appBar (m/AppBar .title (m/Text "Unknown")) .body (m/Text "Unknown component")))))
 
