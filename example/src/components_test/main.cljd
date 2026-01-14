@@ -5,6 +5,7 @@
    ["package:flutter_styled_toast/flutter_styled_toast.dart" :as st]
    [cljd.flutter :as f]
    [components.bottom-sheet :as bottom-sheet]
+   [components.card :as card]
    [components.chip :as chip]
    [components.expansion-tile :as expansion-tile]
    [components.input-dialog :as input-dialog]
@@ -13,11 +14,13 @@
    [components.tab-layout :as tab-layout]
    [components.text-field :as text-field]
    [components.toast :as toast]
-   [components.tooltip :as tooltip]))
+;;    [components.tooltip :as tooltip]
+   ))
 
 ;; Component list for the home page
 (def component-list
   [{:name "Bottom Sheet" :key "bottom_sheet" :icon m/Icons.call_to_action}
+   {:name "Card" :key "card" :icon m/Icons.card_membership}
    {:name "Chip" :key "chip" :icon m/Icons.label}
    {:name "Expansion Tile" :key "expansion_tile" :icon m/Icons.expand_more}
    {:name "Input Dialog" :key "input_dialog" :icon m/Icons.input}
@@ -55,6 +58,46 @@
                              .fontWeight m/FontWeight.w500))])))))
 
 ;; Demo pages for each component
+(defn card-demo-page []
+  (f/widget
+   (m/Scaffold
+    .appBar (m/AppBar .title (m/Text "Card Demo"))
+    .body (m/SingleChildScrollView
+           .scrollDirection m/Axis.horizontal
+           .child (m/Row
+                   .crossAxisAlignment m/CrossAxisAlignment.start
+                   .children
+                   [(mgl/MongolText "Mongol Cards" .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
+                    (m/SizedBox .width 16)
+                    ;; Basic card with title and content
+                    (card/card
+                     {:title "Baraant"
+                      :content "Mongol text content here"
+                      :on-tap (fn [] (println "Card tapped"))})
+                    (m/SizedBox .width 16)
+                    ;; Card with image on left
+                    (card/card
+                     {:title "Ulaanbaatar"
+                      :content "Card with image on the left side"
+                      :image-url "https://via.placeholder.com/120x160"
+                      :image-position :left
+                      :on-tap (fn [] (println "Image left card tapped"))})
+                    (m/SizedBox .width 16)
+                    ;; Card with image on top
+                    (card/card
+                     {:title "Bilguun"
+                      :content "Card with image on top"
+                      :image-url "https://via.placeholder.com/120x160"
+                      :image-position :top
+                      :on-tap (fn [] (println "Image top card tapped"))})
+                    (m/SizedBox .width 16)
+                    ;; Scrollable card
+                    (card/card
+                     {:title "Scrollable Card"
+                      :content "This is a scrollable card with long content that can be scrolled horizontally"
+                      :scrollable? true
+                      :on-tap (fn [] (println "Scrollable card tapped"))})])))))
+
 (defn chip-demo-page []
   (let [chip-state (atom {})
         chip1 (chip/filter-chip "chip1" "Baraant" chip-state)
@@ -280,38 +323,39 @@
                                            :manual-close? true))
               .child (m/Text "Manual Close Toast"))]))))))
 
-(defn tooltip-demo-page []
-  (f/widget
-   (m/Scaffold
-    .appBar (m/AppBar .title (m/Text "Tooltip Demo"))
-    .body (m/Padding
-           .padding (m/EdgeInsets.all 16)
-           .child
-           (m/Row
-            .crossAxisAlignment m/CrossAxisAlignment.start
-            .mainAxisAlignment m/MainAxisAlignment.center
-            .children
-            [(mgl/MongolText "Long press items to see tooltips"
-                    .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
-             (m/SizedBox .width 32)
-             (tooltip/v-overlay-tooltip
-              {:message "Mongol Click Tooltip"
-               :haptic? true
-               :child (m/Container
-                       .padding (m/EdgeInsets.all 16)
-                       .decoration (m/BoxDecoration
-                                   .color m/Colors.blue
-                                   .borderRadius (m/BorderRadius.circular 8))
-                       .child (m/Text "Long press me" .style (m/TextStyle .color m/Colors.white)))})
-             (m/SizedBox .width 16)
-             (tooltip/v-overlay-tooltip
-              {:message "This is another tooltip"
-               :child (m/Container
-                       .padding (m/EdgeInsets.all 16)
-                       .decoration (m/BoxDecoration
-                                   .color m/Colors.green
-                                   .borderRadius (m/BorderRadius.circular 8))
-                       .child (m/Text "Or me" .style (m/TextStyle .color m/Colors.white)))})])))))
+
+;; (defn tooltip-demo-page []
+;;   (f/widget
+;;    (m/Scaffold
+;;     .appBar (m/AppBar .title (m/Text "Tooltip Demo"))
+;;     .body (m/Padding
+;;            .padding (m/EdgeInsets.all 16)
+;;            .child
+;;            (m/Row
+;;             .crossAxisAlignment m/CrossAxisAlignment.start
+;;             .mainAxisAlignment m/MainAxisAlignment.center
+;;             .children
+;;             [(mgl/MongolText "Long press items to see tooltips"
+;;                     .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
+;;              (m/SizedBox .width 32)
+;;              (tooltip/v-overlay-tooltip
+;;               {:message "Mongol Click Tooltip"
+;;                :haptic? true
+;;                :child (m/Container
+;;                        .padding (m/EdgeInsets.all 16)
+;;                        .decoration (m/BoxDecoration
+;;                                    .color m/Colors.blue
+;;                                    .borderRadius (m/BorderRadius.circular 8))
+;;                        .child (m/Text "Long press me" .style (m/TextStyle .color m/Colors.white)))})
+;;              (m/SizedBox .width 16)
+;;              (tooltip/v-overlay-tooltip
+;;               {:message "This is another tooltip"
+;;                :child (m/Container
+;;                        .padding (m/EdgeInsets.all 16)
+;;                        .decoration (m/BoxDecoration
+;;                                    .color m/Colors.green
+;;                                    .borderRadius (m/BorderRadius.circular 8))
+;;                        .child (m/Text "Or me" .style (m/TextStyle .color m/Colors.white)))})])))))
 
 (defn bottom-sheet-demo-page []
   (f/widget
@@ -356,6 +400,7 @@
 (defn get-demo-page [component-key]
   (case component-key
     "bottom_sheet" bottom-sheet-demo-page
+    "card" card-demo-page
     "chip" chip-demo-page
     "expansion_tile" expansion-tile-demo-page
     "input_dialog" input-dialog-demo-page
@@ -364,7 +409,7 @@
     "tab_layout" tab-layout-demo-page
     "text_field" text-field-demo-page
     "toast" toast-demo-page
-    "tooltip" tooltip-demo-page
+;;     "tooltip" tooltip-demo-page
     (fn [] (m/Scaffold .appBar (m/AppBar .title (m/Text "Unknown")) .body (m/Text "Unknown component")))))
 
 ;; Home page

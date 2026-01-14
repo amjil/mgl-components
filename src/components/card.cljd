@@ -1,0 +1,74 @@
+(ns components.card
+  (:require
+   ["package:flutter/material.dart" :as m]
+   ["package:mongol/mongol.dart" :as mgl]
+   [cljd.flutter :as f]
+   [components.tokens :as tokens]))
+
+(defn card
+  "Fully themed Mongolian card.
+   Automatically adapts colors and fonts through Material 3 Theme.
+   Parameters:
+   - :title, :content (String)
+   - :image-url (String)
+   - :image-position (Keyword) - :top or :left
+   - :scrollable? (Boolean)"
+  [{:keys [title content image-url image-position scrollable? on-tap] 
+    :or {image-position :left scrollable? false}}]
+  (f/widget
+   ;; Destructure M3 theme from context
+   :get {{{:flds [surface onSurface surfaceVariant onSurfaceVariant 
+                  outlineVariant shadow]} .-colorScheme
+          {:flds [titleMedium bodyMedium]} .-textTheme} m/Theme}
+   
+   (let [;; Define theme-based local styles
+         title-style (.copyWith titleMedium 
+                                .fontFamily "Menksoft" 
+                                .color onSurface
+                                .fontWeight m/FontWeight.bold)
+         content-style (.copyWith bodyMedium 
+                                  .fontFamily "Menksoft" 
+                                  .color onSurfaceVariant)
+         
+         ;; Text area layout
+         content-area (m/Padding
+                       .padding (m/EdgeInsets.all (tokens/space :m))
+                       .child (m/Row
+                               .mainAxisSize m/MainAxisSize.min
+                               .crossAxisAlignment m/CrossAxisAlignment.start
+                               .children
+                               (remove nil?  [(when title
+                                                (m/Padding
+                                                 .padding (m/EdgeInsets.only .right 12.0)
+                                                 .child (mgl/MongolText title .style title-style)))
+                                              (when content
+                                                (mgl/MongolText content .style content-style))])))
+         
+         ;; Image widget
+         image-widget (when image-url
+                        (m/SizedBox
+                         .width (if (= image-position :left) 120.0 nil)
+                         .height (if (= image-position :top) 160.0 nil)
+                         .child (m/Image.network image-url .fit m/BoxFit.cover)))
+
+         ;; Core layout flow
+         layout (if (= image-position :top)
+                  (m/Column .mainAxisSize m/MainAxisSize.min .children (remove nil? [image-widget content-area]))
+                  (m/Row .mainAxisSize m/MainAxisSize.min .children (remove nil? [image-widget content-area])))
+         
+         ;; Scroll wrapper
+         final-body (if scrollable?
+                      (m/SingleChildScrollView .scrollDirection m/Axis.horizontal .child layout)
+                      layout)]
+
+     (m/Card
+      .color surface
+      .elevation 0 ; M3 prefers color depth over strong shadows
+      .clipBehavior m/Clip.antiAlias
+      ;; Use M3 standard border color
+      .shape (m/RoundedRectangleBorder 
+              .side (m/BorderSide .color outlineVariant)
+              .borderRadius (m/BorderRadius.all (m/Radius.circular 12.0)))
+      .child (m/InkWell 
+              .onTap on-tap 
+              .child final-body)))))
