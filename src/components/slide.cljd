@@ -1,0 +1,67 @@
+(ns components.slide
+  (:require 
+   ["package:flutter/material.dart" :as m]
+   ["package:flutter_slidable/flutter_slidable.dart" :as slidable]))
+
+;; --- Private component ---
+
+(defn- build-action
+  [{:keys [icon color on-pressed label]}]
+  (slidable/SlidableAction
+   .onPressed on-pressed
+   .backgroundColor color
+   .foregroundColor (.white m/Colors)
+   .padding (m/EdgeInsets.all 0)
+   .icon icon
+   .label label))
+
+;; --- Public API ---
+
+(defn item
+  "Generic vertical slide component for Mongolian text
+   Parameters:
+   :id              - Required. Unique identifier for the item (UUID or DB ID)
+   :child           - Required. The widget to display
+   :top-actions     - Optional. Configuration format [{:icon m/Icons.xxx :color m/Colors.xxx :on-pressed (fn [ctx] ...)}]
+   :bottom-actions  - Optional. Same configuration format as above
+   :on-dismiss-top  - Optional. Callback when swiping down to the bottom
+   :on-dismiss-bottom - Optional. Callback when swiping up to the top
+   :confirm-dialog  - Optional. A function returning Future<bool>, used to confirm dismissal (fn [] ...)
+   :extent-ratio    - Menu width ratio, default 0.25
+   :motion          - Animation effect, optional :stretch or :behind (default :stretch)"
+  [{:keys [id child top-actions bottom-actions on-dismiss-top on-dismiss-bottom 
+           confirm-dialog extent-ratio motion]
+    :or {extent-ratio 0.25
+         motion :stretch}}]
+  (let [motion-widget (if (= motion :behind) 
+                        (slidable/BehindMotion.) 
+                        (slidable/StretchMotion.))]
+    (slidable/Slidable
+     .key (m/ValueKey id)
+     .direction m/Axis.vertical
+     
+     ;; Top panel (swipe down from top)
+     .startActionPane
+     (when (seq top-actions)
+       (slidable/ActionPane
+        .extentRatio extent-ratio
+        .motion motion-widget
+        .dismissible (when on-dismiss-top
+                       (slidable/DismissiblePane 
+                        .onDismissed on-dismiss-top
+                        .confirmDismiss confirm-dialog))
+        .children (map build-action top-actions)))
+     
+     ;; Bottom panel (swipe up from bottom)
+     .endActionPane
+     (when (seq bottom-actions)
+       (slidable/ActionPane
+        .extentRatio extent-ratio
+        .motion motion-widget
+        .dismissible (when on-dismiss-bottom
+                       (slidable/DismissiblePane 
+                        .onDismissed on-dismiss-bottom
+                        .confirmDismiss confirm-dialog))
+        .children (map build-action bottom-actions)))
+     
+     .child child)))

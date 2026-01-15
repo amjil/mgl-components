@@ -11,6 +11,7 @@
    [components.input-dialog :as input-dialog]
    [components.search-bar :as search-bar]
    [components.select :as select]
+   [components.slide :as slide]
    [components.tab-layout :as tab-layout]
    [components.text-field :as text-field]
    [components.toast :as toast]
@@ -28,6 +29,7 @@
    {:name "Input Dialog" :key "input_dialog" :icon m/Icons.input}
    {:name "Search Bar" :key "search_bar" :icon m/Icons.search}
    {:name "Select" :key "select" :icon m/Icons.arrow_drop_down}
+   {:name "Slide" :key "slide" :icon m/Icons.swipe_vertical}
    {:name "Tab Layout" :key "tab_layout" :icon m/Icons.tab}
    {:name "Text Field" :key "text_field" :icon m/Icons.text_fields}
    {:name "Toast" :key "toast" :icon m/Icons.notifications}
@@ -180,6 +182,78 @@
                (search-bar/fake-search-bar
                 {:state-atom search-state
                  :on-tap (fn [] (println "Search tapped"))})]))))))
+
+(defn slide-demo-page []
+  (f/widget
+   (m/Scaffold
+    .appBar (m/AppBar .title (m/Text "Slide Demo"))
+    .body (m/Padding
+           .padding (m/EdgeInsets.all 16)
+           .child
+           (m/SingleChildScrollView
+            .scrollDirection m/Axis.horizontal
+            .child
+            (m/Row
+             .crossAxisAlignment m/CrossAxisAlignment.start
+             .children
+             [(mgl/MongolText "Slide Components" .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
+              (m/SizedBox .width 16)
+              ;; Basic slide with top actions
+              (slide/item
+               {:id "slide1"
+                :child (m/Container
+                       .padding (m/EdgeInsets.all 16)
+                       .decoration (m/BoxDecoration
+                                   .color m/Colors.blue.shade100
+                                   .borderRadius (m/BorderRadius.circular 8))
+                       .child (mgl/MongolText "Swipe down for top actions"
+                                              .style (m/TextStyle .fontSize 16)))
+                :top-actions [{:icon m/Icons.delete
+                               :color m/Colors.red
+                               :label "Delete"
+                               :on-pressed (fn [context] (println "Delete pressed"))}
+                              {:icon m/Icons.edit
+                               :color m/Colors.blue
+                               :label "Edit"
+                               :on-pressed (fn [context] (println "Edit pressed"))}]})
+              (m/SizedBox .width 16)
+              ;; Slide with bottom actions
+              (slide/item
+               {:id "slide2"
+                :child (m/Container
+                       .padding (m/EdgeInsets.all 16)
+                       .decoration (m/BoxDecoration
+                                   .color m/Colors.green.shade100
+                                   .borderRadius (m/BorderRadius.circular 8))
+                       .child (mgl/MongolText "Swipe up for bottom actions"
+                                              .style (m/TextStyle .fontSize 16)))
+                :bottom-actions [{:icon m/Icons.share
+                                  :color m/Colors.orange
+                                  :label "Share"
+                                  :on-pressed (fn [context] (println "Share pressed"))}
+                                 {:icon m/Icons.favorite
+                                  :color m/Colors.pink
+                                  :label "Favorite"
+                                  :on-pressed (fn [context] (println "Favorite pressed"))}]})
+              (m/SizedBox .width 16)
+              ;; Slide with both top and bottom actions
+              (slide/item
+               {:id "slide3"
+                :child (m/Container
+                       .padding (m/EdgeInsets.all 16)
+                       .decoration (m/BoxDecoration
+                                   .color m/Colors.purple.shade100
+                                   .borderRadius (m/BorderRadius.circular 8))
+                       .child (mgl/MongolText "Swipe up or down for actions"
+                                              .style (m/TextStyle .fontSize 16)))
+                :top-actions [{:icon m/Icons.archive
+                               :color m/Colors.grey
+                               :label "Archive"
+                               :on-pressed (fn [context] (println "Archive pressed"))}]
+                :bottom-actions [{:icon m/Icons.star
+                                  :color m/Colors.amber
+                                  :label "Star"
+                                  :on-pressed (fn [context] (println "Star pressed"))}]})]))))))
 
 (defn select-demo-page []
   (f/widget
@@ -493,6 +567,7 @@
     "input_dialog" input-dialog-demo-page
     "search_bar" search-bar-demo-page
     "select" select-demo-page
+    "slide" slide-demo-page
     "tab_layout" tab-layout-demo-page
     "text_field" text-field-demo-page
     "toast" toast-demo-page
