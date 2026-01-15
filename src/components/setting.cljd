@@ -1,0 +1,143 @@
+(ns components.setting
+  (:require 
+    ["package:flutter/material.dart" :as m]
+    ["package:flutter/services.dart" :as s]
+    ["package:mongol/mongol.dart" :as mgl]
+    [cljd.flutter :as f]))
+
+;; --- Default Static Configuration ---
+(def ^:private default-config
+  {:card-radius 16.0
+   :item-radius 12.0
+   :min-item-width 140.0
+   :max-item-width 180.0
+   :show-shadow true
+   :border-width 1.0})
+
+;; --- Internal Component: Build Trailing Widget Based on Type ---
+(defn- build-trailing [item colors]
+  (cond
+    ;; Switch type: Rotate -1 (counterclockwise 90 degrees) to adapt to vertical UI
+    (contains? item :value)
+    (m/RotatedBox 
+      .quarterTurns -1 
+      .child (m/Transform.scale
+               .scale 0.85
+               .child (m/Switch
+                        .value (boolean (:value item))
+                        .onChanged (fn [v] 
+                                     (when-let [f (:on-changed item)] (f v))
+                                     ;; Add light haptic feedback
+                                     (s.HapticFeedback/lightImpact)
+                                     nil)
+                        .activeColor (:primary colors))))
+
+    ;; Navigation arrow: Rotate 1 (clockwise 90 degrees) pointing downward, conforming to vertical visual flow
+    (:show-arrow? item)
+    (m/RotatedBox 
+      .quarterTurns 1 
+      .child (m/Icon m.Icons/chevron_right_rounded 
+                     .size 20 .color (:on-surface-v colors)))
+
+    ;; Default or custom widget
+    :else (:trailing item)))
+
+;; --- Internal Component: Single Setting Item Content ---
+(defn- settings-item-content [item {:keys [colors config]}]
+  (let [{:keys [primary on-surface on-surface-v]} colors]
+    (m/Container
+      .padding (m.EdgeInsets/symmetric .vertical 12 .horizontal 10)
+      .constraints (m/BoxConstraints .minWidth (:min-item-width config) 
+                                     .maxWidth (:max-item-width config))
+      .child (mgl/MongolListTile
+               .contentPadding m.EdgeInsets/zero
+               .leading (when-let [icon (:leading item)]
+                          (m/Container
+                            .padding (m.EdgeInsets/all 8)
+                            .decoration (m/BoxDecoration
+                                          .color (-> primary (.withOpacity 0.1))
+                                          .borderRadius (m.BorderRadius/circular 10))
+                            .child (m/Icon icon .size 22 .color primary)))
+               .title (mgl/MongolText (or (:title item) "")
+                        .style (m/TextStyle
+                                 .fontSize 16
+                                 .fontWeight m.FontWeight/w600
+                                 .color on-surface
+                                 .height 1.2))
+               .subtitle (when-let [sub (:subtitle item)]
+                           (mgl/MongolText sub
+                             .style (m/TextStyle
+                                      .fontSize 13
+                                      .color on-surface-v
+                                      .height 1.4)))
+               .trailing (m/SizedBox .height 50 
+                                     .child (build-trailing item colors))))))
+
+;; --- Core Component: Setting Item Card Group ---
+(defn settings-group 
+  "Renders a rounded card containing horizontally scrollable vertical setting items"
+  [items & {:keys [custom-config empty-label] :or {empty-label "Хоосон байна"}}]
+  (f/widget
+   :get {{{:flds [primary onSurface onSurfaceVariant outline shadow] :as cs} .-colorScheme
+          {:flds [labelLarge]} .-textTheme
+          card-color .-cardColor
+          brightness .-brightness} m/Theme}
+   :let [is-dark? (= brightness m/Brightness.dark)
+         config (merge default-config custom-config)
+         theme-data {:config config
+                     :colors {:primary primary
+                              :on-surface onSurface
+                              :on-surface-v onSurfaceVariant}}]
+   (m/Container
+    .margin (m.EdgeInsets/symmetric .horizontal 20 .vertical 8)
+    .decoration (m/BoxDecoration
+                 .color card-color
+                 .borderRadius (m.BorderRadius/circular (:card-radius config))
+                 .border (m/Border.all .color (-> outline (.withOpacity 0.2)) .width (:border-width config))
+                 .boxShadow (when (:show-shadow config)
+                              [(m/BoxShadow
+                                .color (-> shadow (.withOpacity (if is-dark? 0.4 0.1)))
+                                .blurRadius 12 .offset (m/Offset 0 4))]))
+    .child
+    (if (empty? items)
+      (m/Container .padding (m.EdgeInsets/all 32)
+                   .child (m/Center .child (mgl/MongolText empty-label .style (-> labelLarge (.copyWith .color onSurfaceVariant)))))
+      (m/ListView.separated
+       .scrollDirection m.Axis/horizontal
+       .shrinkWrap true
+       .padding (m/EdgeInsets.symmetric .horizontal 10)
+       .physics (m/BouncingScrollPhysics)
+       .itemCount (count items)
+       .separatorBuilder (fn [_ _]
+                           (m/VerticalDivider
+                            .indent 15 .endIndent 15
+                            .thickness 1 .color (-> outline (.withOpacity 0.1))))
+       .itemBuilder
+       (fn [_ i]
+         (let [item (nth items i)]
+           (m/InkWell
+            .onTap (:on-tap item)
+            .borderRadius (m/BorderRadius.circular (:item-radius config))
+            .splashColor (-> primary (.withOpacity 0.1))
+            .child (settings-item-content item theme-data)))))))))
+
+;; --- Public API: Setting Section with Title ---
+(defn settings-section
+  "Top-level component: Contains a category title and a group of setting cards"
+  [title items & {:as opts}]
+  (f/widget
+    :get {{{:flds [primary]} .-colorScheme
+           {:flds [titleMedium]} .-textTheme} m/Theme}
+    (m/Row
+      .crossAxisAlignment m.CrossAxisAlignment/start
+      .mainAxisSize m.MainAxisSize/min
+      .children
+      [(when title
+         (m/Padding
+           .padding (m.EdgeInsets/only .left 32 .top 16 .bottom 4)
+           .child (mgl/MongolText title
+                    .style (-> titleMedium 
+                               (.copyWith .color primary 
+                                          .fontWeight m.FontWeight/bold
+                                          .fontSize 14)))))
+       (apply settings-group items (mapcat identity opts))])))

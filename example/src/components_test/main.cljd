@@ -16,6 +16,7 @@
    [components.text-field :as text-field]
    [components.toast :as toast]
    [components.dialog :refer [vertical-custom-dialog]]
+   [components.setting :refer [settings-section]]
 ;;    [components.tooltip :as tooltip]
    ))
 
@@ -33,6 +34,7 @@
    {:name "Tab Layout" :key "tab_layout" :icon m/Icons.tab}
    {:name "Text Field" :key "text_field" :icon m/Icons.text_fields}
    {:name "Toast" :key "toast" :icon m/Icons.notifications}
+   {:name "Setting" :key "setting" :icon m/Icons.settings}
    {:name "Tooltip" :key "tooltip" :icon m/Icons.info}])
 
 ;; Component card widget
@@ -556,6 +558,42 @@
                                   :layout-mode :grid))
                      .child (m/Text "Show Grid Bottom Sheet"))])))))
 
+(defn setting-demo-page []
+  (let [dark-mode? (atom false)]
+    (f/widget
+     :context ctx
+     (m/Scaffold
+      .backgroundColor (.-surface (m.ColorScheme/of ctx)))
+     .body
+     (m/SafeArea)
+     (m/ListView
+      .scrollDirection m/Axis.horizontal
+      .children
+      [(settings-section
+        "Хэрэглэгчийн хэсэг"
+        [{:title "Миний мэдээлэл"
+          :leading m.Icons/person_outline
+          :show-arrow? true
+          :on-tap #(println "Profile tap")}
+         {:title "Нууц үг солих"
+          :leading m.Icons/lock_open
+          :show-arrow? true}])
+
+       (settings-section
+        "Систем тохиргоо"
+        [{:title "Харанхуй горим"
+          :leading m.Icons/dark_mode
+          :value @dark-mode?
+          :on-changed #(reset! dark-mode? %)}
+         {:title "Мэдэгдэл"
+          :subtitle "Идэвхтэй"
+          :leading m.Icons/notifications_active
+          :value true}
+         {:title "Хэлний сонголт"
+          :subtitle "Монгол"
+          :leading m.Icons/language
+          :show-arrow? true}])]))))
+
 ;; Route generator
 (defn get-demo-page [component-key]
   (case component-key
@@ -571,6 +609,7 @@
     "tab_layout" tab-layout-demo-page
     "text_field" text-field-demo-page
     "toast" toast-demo-page
+    "setting" setting-demo-page
 ;;     "tooltip" tooltip-demo-page
     (fn [] (m/Scaffold .appBar (m/AppBar .title (m/Text "Unknown")) .body (m/Text "Unknown component")))))
 
