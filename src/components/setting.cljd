@@ -28,7 +28,7 @@
                         .onChanged (fn [v] 
                                      (when-let [f (:on-changed item)] (f v))
                                      ;; Add light haptic feedback
-                                     (s.HapticFeedback/lightImpact)
+                                     (s/HapticFeedback.lightImpact)
                                      nil)
                         .activeColor (:primary colors))))
 

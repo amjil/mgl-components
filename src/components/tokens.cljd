@@ -20,6 +20,12 @@
    :l 20.0   ; Title / Project
    :m 16.0   ; Body / Task
    :s 12.0}) ; Label / Status
+   
+(def radius-size
+  {:s 8.0
+   :m 12.0
+   :l 16.0
+   :xl 24.0})
 
 ;; 1.3 Color Tokens
 (def colors
@@ -32,6 +38,9 @@
 ;; Helper function: get spacing
 (defn space [key]
   (get spacing key 0.0))
+  
+(defn radius [key]
+  (get radius-size key 8.0))
 
 ;; Helper function: get font size
 (defn font-size [key]
