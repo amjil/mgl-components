@@ -13,12 +13,16 @@ A ClojureDart component library for Flutter applications with Mongolian language
 ## Components
 
 - **Bottom Sheet** - Modal bottom sheet with customizable height and styling
+- **Card** - Fully themed Mongolian card with image support and customizable layout
 - **Chip** - Filter chips with selection state management and haptic feedback
+- **Dialog** - Vertical custom dialog with optimized performance and flexible layout
 - **Expansion Tile** - Expandable/collapsible content sections
 - **Input Dialog** - Text input dialogs with validation
 - **Layout** - Row-first layout container for side-by-side content arrangement
 - **Search Bar** - Search input with clear functionality
 - **Select** - Dropdown selection menus with grouping support
+- **Setting** - Settings section component with horizontal scrollable items and switch support
+- **Slide** - Vertical slide component with swipe actions for list items
 - **Tab Layout** - Tab navigation component
 - **Text** - Vertical Mongolian text display with focus highlighting and tap support
 - **Text Field** - Text input field with vertical Mongolian text support and placeholder hints
@@ -42,6 +46,8 @@ This library requires:
 - [ClojureDart](https://github.com/tensegritics/ClojureDart)
 - [mongol](https://pub.dev/packages/mongol) - For Mongolian text rendering
 - [mongol-virtual-keyboard](https://github.com/amjil/mongol-virtual-keyboard) - For virtual keyboard support
+- [flutter_styled_toast](https://pub.dev/packages/flutter_styled_toast) - For toast notifications (used by Toast component)
+- [flutter_slidable](https://pub.dev/packages/flutter_slidable) - For slide actions (used by Slide component)
 
 ## Usage
 
@@ -139,6 +145,74 @@ Dropdown selection component with grouping and theming support.
           {:value "2" :label (m/Text "Option 2") :group "Group A"}]
   :value "1"
   :on-changed #(print "Selected:" %)})
+```
+
+### Card
+
+Fully themed Mongolian card component with image support and customizable layout.
+
+```clojure
+(card/card
+ {:title "Card Title"
+  :content "Card content text"
+  :image-url "https://example.com/image.jpg"
+  :image-position :left  ; or :top
+  :scrollable? false
+  :on-tap #(print "Card tapped")})
+```
+
+### Dialog
+
+Vertical custom dialog component with flexible layout and optimized performance.
+
+```clojure
+(dialog/vertical-custom-dialog
+ {:title "Dialog Title"
+  :body (m/Text "Dialog content")
+  :actions [(m/TextButton .onPressed #(Navigator.pop context) .child (m/Text "OK"))
+            (m/TextButton .onPressed #(Navigator.pop context) .child (m/Text "Cancel"))]
+  :width-factor 0.85
+  :height-factor 0.6})
+```
+
+### Setting
+
+Settings section component with horizontal scrollable items, switch support, and navigation arrows.
+
+```clojure
+(setting/settings-section
+ "Settings Category"
+ [{:title "Setting Item 1"
+   :subtitle "Description"
+   :leading m/Icons.settings
+   :value true
+   :on-changed #(print "Toggled:" %)}
+  {:title "Setting Item 2"
+   :subtitle "Navigate"
+   :leading m/Icons.arrow_forward
+   :show-arrow? true
+   :on-tap #(print "Tapped")}]
+ :custom-config {:card-radius 16.0
+                 :item-radius 12.0
+                 :show-shadow true})
+```
+
+### Slide
+
+Vertical slide component with swipe actions for list items.
+
+```clojure
+(slide/item
+ {:id "item-1"
+  :child (m/ListTile .title (m/Text "Swipeable Item"))
+  :top-actions [{:icon m/Icons.edit
+                 :color m/Colors.blue
+                 :on-pressed #(print "Edit")}]
+  :bottom-actions [{:icon m/Icons.delete
+                    :color m/Colors.red
+                    :on-pressed #(print "Delete")}]
+  :extent-ratio 0.25
+  :motion :stretch})
 ```
 
 ### Text Field
