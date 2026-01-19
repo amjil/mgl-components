@@ -25,7 +25,7 @@
       .children 
       (vec (map (fn [item] 
                   (m/Padding
-                   .padding (m/EdgeInsets.only :right (tokens/space :xs))
+                   .padding (m/EdgeInsets.only .right (tokens/space :xs))
                    .child
                    (m/Material
                     .color surfaceVariant
@@ -46,7 +46,7 @@
   (f/widget
    :get {{{:flds [primary]} .-colorScheme} m/Theme}
    (m/Padding
-    .padding (m/EdgeInsets.only :left (tokens/space :s))
+    .padding (m/EdgeInsets.only .left (tokens/space :s))
     .child
     (m/Column
      .mainAxisSize m/MainAxisSize.min
@@ -137,7 +137,7 @@
           (m/Expanded
            .child
            (m/Padding
-            .padding (m/EdgeInsets.symmetric :horizontal (tokens/space :m))
+            .padding (m/EdgeInsets.symmetric .horizontal (tokens/space :m))
             .child
             (m/Stack
              .children
