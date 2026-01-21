@@ -313,6 +313,9 @@
       .body (m/Padding
              .padding (m/EdgeInsets.all 16)
              .child
+             (m/SingleChildScrollView
+              .scrollDirection m/Axis.horizontal
+              .child
              (m/Row
               .crossAxisAlignment m/CrossAxisAlignment.start
               .children
@@ -322,6 +325,7 @@
                (m/SizedBox .width 8)
                (text-field/text-field
                 {:controller controller1
+                 :max-lines 1
                  :hint "Naran Bichig Bichig Bichig"
                  :on-changed (fn [text] (println "Text changed:" text))})
                (m/SizedBox .width 24)
@@ -339,7 +343,7 @@
                 {:controller controller3
                  :hint "Aatumaatal Altumaatal Altumaatal"
                  :autofocus true
-                 :on-changed (fn [text] (println "Autofocus text changed:" text))})]))))))
+                 :on-changed (fn [text] (println "Autofocus text changed:" text))})])))))))
 
 (defn toast-demo-page []
   (f/widget

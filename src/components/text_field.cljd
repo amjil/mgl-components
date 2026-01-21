@@ -10,8 +10,6 @@
     :or {max-lines nil
          autofocus false}}]
   (let [is-empty (atom (empty? (.-text controller)))
-        ;; Check if single line
-        is-single-line (or (= 1 max-lines) (nil? max-lines))
         ;; Default values
         default-font-size 16.0
         default-line-height 1.2]
@@ -29,22 +27,22 @@
                           default-line-height)
            ;; This value controls how much the cursor is pulled left in empty state. If not enough, increase the value
            fix-offset (* font-size line-height)
+           fix-offset-half (/ (- fix-offset) 2) 
            base-style (let [s (or style (m/TextStyle .color onSurface .fontSize font-size))]
                         (if (.-height s) s (.copyWith s .height line-height)))
            
            final-decoration (-> (or decoration (m/InputDecoration .border m/InputBorder.none))
-                                (.copyWith 
-                                 .hintText nil 
-                                 .hintStyle nil 
-                                 .contentPadding (m/EdgeInsets.only .left 8 .top 8)))]
+                                (.copyWith
+                                 .hintText nil
+                                 .hintStyle nil
+                                 .contentPadding (m/EdgeInsets.all 8)))]
      
      (m/Stack
-      .alignment m/Alignment.topLeft
+      .alignment m/Alignment.topCenter
       .children
       [;; 1. Fake Hint
        (if (and is-empty? hint)
          (m/Positioned
-          .left 8 
           .top 8
           .child
           (m/IgnorePointer
@@ -60,11 +58,12 @@
         ;; Logic correction:
         ;; Only offset left to fix cursor position when [single line] and [empty].
         ;; Once text is entered (is-empty? becomes false), offset resets to zero, returning to the "normal position".
-        .offset (if (and is-single-line is-empty?)
-                  (m/Offset (- fix-offset) 0)
-                  (if is-single-line
-                    (m/Offset (/ (- fix-offset) 2) 0)
-                    m/Offset.zero))
+        .offset (cond
+                  (and is-empty? (nil? max-lines)) (m/Offset fix-offset-half 0)
+                  (and (not is-empty?) (nil? max-lines)) m/Offset.zero
+                  ;; (and true (= 1 max-lines)) (m/Offset fix-offset-half 0)
+                  (> max-lines 1) (m/Offset (* fix-offset-half -2) 0)
+                  :else m/Offset.zero)
         .child (mgl/MongolTextField
                 .controller controller
                 .autofocus autofocus
