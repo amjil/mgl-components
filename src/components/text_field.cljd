@@ -4,75 +4,82 @@
    ["package:mongol/mongol.dart" :as mgl]
    [cljd.flutter :as f]))
 
-
 (defn text-field
-  [{:keys [controller hint on-changed style decoration max-lines autofocus]
+  [{:keys [controller hint on-changed style decoration max-lines autofocus
+           prefix-icon suffix-icon]
     :or {max-lines nil
          autofocus false}}]
   (let [is-empty (atom (empty? (.-text controller)))
-        ;; Default values
         default-font-size 16.0
         default-line-height 1.2]
-    
+
     (f/widget
      :get {{{:flds [onSurface onSurfaceVariant]} .-colorScheme
             {:flds [bodyMedium]} .-textTheme} m/Theme}
      :watch [is-empty? is-empty]
-     :let [;; Get font size and line height from style or theme
-           font-size (or (when style (.-fontSize style))
-                        (when bodyMedium (.-fontSize bodyMedium))
-                        default-font-size)
+     :let [font-size (or (when style (.-fontSize style))
+                         (when bodyMedium (.-fontSize bodyMedium))
+                         default-font-size)
            line-height (or (when style (.-height style))
-                          (when bodyMedium (.-height bodyMedium))
-                          default-line-height)
-           ;; This value controls how much the cursor is pulled left in empty state. If not enough, increase the value
+                           (when bodyMedium (.-height bodyMedium))
+                           default-line-height)
            fix-offset (* font-size line-height)
-           fix-offset-half (/ (- fix-offset) 2) 
+           fix-offset-half (/ (- fix-offset) 2)
            base-style (let [s (or style (m/TextStyle .color onSurface .fontSize font-size))]
                         (if (.-height s) s (.copyWith s .height line-height)))
-           
+
+           ;; Clear default icons in decoration to avoid interference
            final-decoration (-> (or decoration (m/InputDecoration .border m/InputBorder.none))
                                 (.copyWith
                                  .hintText nil
                                  .hintStyle nil
-                                 .contentPadding (m/EdgeInsets.all 8)))]
-     
-     (m/Stack
-      .alignment m/Alignment.topCenter
+                                 .contentPadding (m/EdgeInsets.symmetric .horizontal 8 .vertical 4)))]
+
+     ;; Use Column to vertically arrange icons and input field
+     (m/Column
+      .mainAxisSize m/MainAxisSize.min
       .children
-      [;; 1. Fake Hint
-       (if (and is-empty? hint)
-         (m/Positioned
-          .top 8
-          .child
-          (m/IgnorePointer
-           .child
-           (mgl/MongolText
-            hint
-            .style (.copyWith base-style .color (.withOpacity onSurfaceVariant 0.6))
-            .textAlign mgl/MongolTextAlign.top)))
+      [(if prefix-icon
+         (m/Padding .padding (m/EdgeInsets.only .bottom 4) .child prefix-icon)
          (m/SizedBox.shrink))
 
-       ;; 2. Input field
-       (m/Transform.translate
-        ;; Logic correction:
-        ;; Only offset left to fix cursor position when [single line] and [empty].
-        ;; Once text is entered (is-empty? becomes false), offset resets to zero, returning to the "normal position".
-        .offset (cond
-                  (and is-empty? (nil? max-lines)) (m/Offset fix-offset-half 0)
-                  (and (not is-empty?) (nil? max-lines)) m/Offset.zero
-                  ;; (and true (= 1 max-lines)) (m/Offset fix-offset-half 0)
-                  (> max-lines 1) (m/Offset (* fix-offset-half -2) 0)
-                  :else m/Offset.zero)
-        .child (mgl/MongolTextField
-                .controller controller
-                .autofocus autofocus
-                .maxLines max-lines
-                .style base-style
-                .decoration final-decoration
-                .textAlign mgl/MongolTextAlign.top
-                .cursorColor onSurface
-                .onChanged (fn [text]
-                             (reset! is-empty (empty? text))
-                             (when on-changed (on-changed text)))))]))))
+       (m/Expanded
+        .child
+        (m/Stack
+         .alignment m/Alignment.topCenter
+         .children
+         [;; 1. Fake Hint (positioned relative to input field, no need to consider prefix)
+          (if (and is-empty? hint)
+            (m/Positioned
+             .top 4
+             .child
+             (m/IgnorePointer
+              .child
+              (mgl/MongolText
+               hint
+               .style (.copyWith base-style .color (.withOpacity onSurfaceVariant 0.6))
+               .textAlign mgl/MongolTextAlign.top)))
+            (m/SizedBox.shrink))
 
+          ;; 2. Input field
+          (m/Transform.translate
+           .offset (cond
+                     (and is-empty? (nil? max-lines)) (m/Offset fix-offset-half 0)
+                     (and (not is-empty?) (nil? max-lines)) m/Offset.zero
+                     (and max-lines (> max-lines 1)) (m/Offset (* fix-offset-half -2) 0)
+                     :else m/Offset.zero)
+           .child (mgl/MongolTextField
+                   .controller controller
+                   .autofocus autofocus
+                   .maxLines max-lines
+                   .style base-style
+                   .decoration final-decoration
+                   .textAlign mgl/MongolTextAlign.top
+                   .cursorColor onSurface
+                   .onChanged (fn [text]
+                                (reset! is-empty (empty? text))
+                                (when on-changed (on-changed text)))))]))
+
+       (if suffix-icon
+         (m/Padding .padding (m/EdgeInsets.only .top 4) .child suffix-icon)
+         (m/SizedBox.shrink))]))))

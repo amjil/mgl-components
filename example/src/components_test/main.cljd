@@ -325,6 +325,7 @@
                (m/SizedBox .width 8)
                (text-field/text-field
                 {:controller controller1
+                 :prefix-icon (m/Icon m/Icons.search)
                  :max-lines 1
                  :hint "Naran Bichig Bichig Bichig"
                  :on-changed (fn [text] (println "Text changed:" text))})
