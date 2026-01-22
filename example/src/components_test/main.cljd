@@ -17,6 +17,7 @@
    [components.toast :as toast]
    [components.dialog :refer [vertical-custom-dialog]]
    [components.setting :refer [settings-section]]
+   [components.navigation :refer [navigation-scaffold]]
 ;;    [components.tooltip :as tooltip]
    ))
 
@@ -35,6 +36,7 @@
    {:name "Text Field" :key "text_field" :icon m/Icons.text_fields}
    {:name "Toast" :key "toast" :icon m/Icons.notifications}
    {:name "Setting" :key "setting" :icon m/Icons.settings}
+   {:name "Navigation" :key "navigation" :icon m/Icons.navigation}
    {:name "Tooltip" :key "tooltip" :icon m/Icons.info}])
 
 ;; Component card widget
@@ -599,6 +601,67 @@
           :leading m.Icons/language
           :show-arrow? true}])]))))
 
+;; Navigation scaffold helper
+(defn content-page [title content]
+  (f/widget
+   :get {{{:flds [onSurface]} .-colorScheme} m/Theme}
+   (m/Center
+    .child (m/Column
+            .mainAxisAlignment m/MainAxisAlignment.center
+            .children
+            [(mgl/MongolText title
+                    .style (m/TextStyle
+                           .fontSize 32
+                           .fontWeight m/FontWeight.bold
+                           .color onSurface))
+             (m/SizedBox .height 24)
+             (mgl/MongolText content
+                    .style (m/TextStyle
+                           .fontSize 18
+                           .color onSurface))]))))
+
+;; Navigation scaffold demo page
+(defn navigation-demo-page []
+  (let [!app-state (atom {:idx 0
+                          :theme-mode :dark
+                          :pinned? false})]
+    (f/widget
+     :watch [state !app-state]
+     (navigation-scaffold
+      {;; --- Menu Items Configuration ---
+       :items [{:id 0 :label "ᠨᠢᠭᠤᠷ" :icon m.Icons/home_rounded}
+               {:id 1 :label "ᠲᠡᠦᠬᠡ" :icon m.Icons/history_edu_rounded}
+               {:id 2 :label "ᠪᠠᠢᠭᠠᠯᠢ" :icon m.Icons/landscape_rounded}]
+       
+       ;; --- State Passing ---
+       :current-idx (:idx state)
+       :theme-mode (:theme-mode state)
+       :pinned? (:pinned? state)
+       
+       ;; --- Parallax Background Configuration (supports mixed sources) ---
+       :backgrounds ["https://picsum.photos/1080/1920?sig=0" ; Network image
+                     "https://picsum.photos/1080/1920?sig=1" ; Network image
+                     "https://picsum.photos/1080/1920?sig=2"] ; Network image
+       
+       ;; --- Sub-page Content ---
+       :pages [(content-page "ᠨᠢᠭᠤᠷ" "ᠡᠨᠡ ᠪᠣᠯ ᠨᠢᠭᠤᠷ ᠬᠠᠭᠤᠳᠠᠰᠤ ᠶᠤᠮ")
+               (content-page "ᠲᠡᠦᠬᠡ" "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ᠌ ᠤᠨ ᠲᠡᠦᠬᠡ ᠪᠣᠯ ᠤᠷᠲᠤ ᠶᠤᠮ")
+               (content-page "ᠪᠠᠢᠭᠠᠯᠢ" "ᠬᠦᠪᠡᠰᠬᠦᠯ ᠠᠢᠮᠠᠭ ᠤᠨ ᠪᠠᠢᠭᠠᠯᠢ ᠶ᠋ᠢᠨ ᠦᠵᠡᠮᠵᠢ")]
+       
+       ;; --- Event Callbacks ---
+       :on-item-selected (fn [idx] (swap! !app-state assoc :idx idx))
+       :on-toggle-theme  (fn [] (swap! !app-state update :theme-mode 
+                                  #(if (= % :light) :dark :light)))
+       :on-toggle-pinned (fn [] (swap! !app-state update :pinned? not))
+       
+       ;; --- Visual Fine-tuning Parameters ---
+       :opts {:width 30.0             ; Sidebar width
+              :blur 10.0               ; Blur intensity
+              :3d-scale 0.2            ; 3D scale ratio
+              :3d-rotate 12.0          ; 3D rotation angle
+              :parallax-intensity 100.0 ; Parallax intensity
+              :image-fit m.BoxFit/cover}}))))
+
 ;; Route generator
 (defn get-demo-page [component-key]
   (case component-key
@@ -615,6 +678,7 @@
     "text_field" text-field-demo-page
     "toast" toast-demo-page
     "setting" setting-demo-page
+    "navigation" navigation-demo-page
 ;;     "tooltip" tooltip-demo-page
     (fn [] (m/Scaffold .appBar (m/AppBar .title (m/Text "Unknown")) .body (m/Text "Unknown component")))))
 
@@ -650,6 +714,7 @@
      .debugShowCheckedModeBanner false
      .theme (m/ThemeData
              .brightness m.Brightness/dark
+             .fontFamily "OyunQaganTig"
              .useMaterial3 true)
      .home (home-page)
      ;(m/Center .child (m/Text "Hello, World!"))

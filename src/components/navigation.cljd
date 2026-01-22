@@ -1,0 +1,203 @@
+(ns components.navigation
+  (:require ["package:flutter/material.dart" :as m]
+            ["package:flutter/services.dart" :as s]
+            ["package:mongol/mongol.dart" :as mgl]
+            ["dart:ui" :as ui]
+            ["dart:math" :as math]
+            [cljd.flutter :as f]))
+
+;; --- Internal Private Helper Components ---
+
+(defn- get-image-provider [path]
+  (if (re-find #"^http" path)
+    (m/NetworkImage path)
+    (m/AssetImage path)))
+
+(defn- parallax-background [{:keys [path offset index intensity fit]}]
+  (f/widget
+    (let [
+          ;; The offset here is obtained from the safely checked page-offset
+          x-shift (* (- index offset) intensity)]
+      (m/Transform.translate
+        .offset (ui/Offset. x-shift 0.0)
+        .child (m/Image 
+                 .image (get-image-provider path)
+                 .fit fit
+                 .filterQuality m.FilterQuality/low
+                 .frameBuilder (fn [_ child frame sync?]
+                                 (if sync? child
+                                   (m/AnimatedOpacity 
+                                     .opacity (if frame 1 0)
+                                     .duration (dart:core/Duration. .milliseconds 600)
+                                     .child child))))))))
+
+(defn- vertical-dots-indicator [{:keys [count current-idx color]}]
+  (m/Column
+    .mainAxisSize m/MainAxisSize.min
+    .children
+    (mapv (fn [i]
+            (m/AnimatedContainer
+              .duration (dart:core/Duration. .milliseconds 350)
+              .margin (m/EdgeInsets.symmetric .vertical 4.0)
+              .width 4.0
+              .height (if (= i current-idx) 22.0 6.0)
+              .decoration (m/BoxDecoration 
+                            .color (if (= i current-idx) color (-> color (.withOpacity 0.3)))
+                            .borderRadius (m/BorderRadius.circular 2.0))))
+          (range count))))
+
+;; --- Public Library Main Function ---
+
+(defn navigation-scaffold
+  [{:keys [items current-idx theme-mode pinned?
+           on-item-selected on-toggle-pinned on-toggle-theme
+           pages backgrounds opts]
+    :or {opts {:width 90.0 :blur 15.0 :3d-scale 0.18 :3d-rotate 15.0 
+               :parallax-intensity 85.0 :image-fit m.BoxFit/cover}}}]
+  (f/widget
+    :get {{{:flds [surface surfaceVariant onSurface onSurfaceVariant primary]} .-colorScheme
+           {:flds [titleMedium]} .-textTheme} m/Theme}
+    :vsync vsync
+    ;; Use safe initial value
+    :watch [page-offset (atom (double current-idx))]
+    :managed [pc (m/PageController .initialPage current-idx)
+              ac (m/AnimationController .vsync vsync .duration (dart:core/Duration. .milliseconds 650))
+              curved-ac (m/CurvedAnimation .parent ac .curve m.Curves/easeOutQuart)]
+    
+    (m/PopScope
+      .canPop (not (> (.-value ac) 0.1))
+      .onPopInvoked (fn [did-pop] (when (and (not did-pop) (> (.-value ac) 0.1)) (.reverse ac))
+                      nil))
+    
+    (m/Scaffold .backgroundColor surface)
+    .body
+    (m/Stack
+      .children
+      [;; A. 3D Transform Parallax Layer
+       (m/AnimatedBuilder
+         .animation (m/Listenable.merge [curved-ac pc])
+         .builder 
+         (fn [context _]
+           (let [v (.-value curved-ac)
+                 current-page (if (.-hasClients pc) (or (.-page pc) (double current-idx)) (double current-idx))
+                 transform (doto (m/Matrix4.identity)
+                             (.setEntry 3 2 0.001)
+                             (.translate (* v -85.0))
+                             (.scale (- 1.0 (* v (:3d-scale opts))))
+                             (.rotateY (* v (/ math/pi (:3d-rotate opts)))))]
+             (m/Transform
+              .transform transform
+              .alignment m/Alignment.centerRight
+              .child
+              (m/ClipRRect
+               .borderRadius (m/BorderRadius.circular (* v 32.0))
+               .child
+               (m/Stack
+                .children
+                [(m/PageView .controller pc
+                             .onPageChanged on-item-selected
+                             .children
+                             (map-indexed
+                              (fn [idx page-widget]
+                                (m/Stack .fit m.StackFit/expand
+                                         .children
+                                         [(parallax-background
+                                           {:path (get backgrounds idx)
+                                            :offset current-page
+                                            :index idx
+                                            :intensity (:parallax-intensity opts)
+                                            :fit (:image-fit opts)})
+                                          ;; Overlay enhances text readability
+                                          (m/Container .color (-> (.-black m/Colors) (.withOpacity 0.3)))
+                                          page-widget]))
+                              pages))
+                 ;; Left-side return sensing area
+                 (m/Positioned .left 0 .top 0 .bottom 0 .width 35.0
+                               .child (m/GestureDetector
+                                       .onHorizontalDragUpdate
+                                       #(when (and (< (.-value ac) 0.1) (> (.-dx (.-delta %)) 10))
+                                          (.maybePop (m/Navigator.of context))
+                                          nil)))])))))
+         .child (m/SizedBox.shrink))
+
+       ;; B. Gesture Interception Layer
+       (m/Positioned.fill
+         .child (m/GestureDetector
+                  .behavior m.HitTestBehavior/translucent
+                  .onHorizontalDragUpdate 
+                  (fn [details] 
+                    (let [delta-x (.-dx (.-delta details))
+                          change (/ (- delta-x) (:width opts))]
+                      (when (or (> (.-value ac) 0) (< delta-x 0))
+                        (set! (.-value ac) (-> (+ (.-value ac) change) (.clamp 0.0 1.0)))))
+                    nil)
+                  .onHorizontalDragEnd 
+                  (fn [_] (if (> (.-value ac) 0.5) (.forward ac) (.reverse ac))
+                    nil)))
+
+       ;; C. Background Blur
+       (f/widget
+         :watch [v curved-ac]
+         (if (> v 0.0)
+           (m/Positioned.fill
+             .child (m/BackdropFilter 
+                      .filter (ui/ImageFilter.blur .sigmaX (* v (:blur opts)) 
+                                                  .sigmaY (* v (:blur opts)))
+                      .child (m/GestureDetector 
+                               .onTap #(do (.reverse ac)
+                                           nil)
+                               .child (m/Container .color (-> (.-black m/Colors) (.withOpacity (* v 0.45)))))))
+           (m/SizedBox.shrink)))
+
+       ;; D. Sidebar Content
+       (m/AnimatedBuilder
+         .animation curved-ac
+         .builder
+         (fn [_ _]
+           (let [v (.-value curved-ac)]
+             (m/Positioned
+               .right (- (* (:width opts) v) (:width opts))
+               .top 0 .bottom 0
+               .child 
+               (f/widget
+                (m/SizedBox .width (:width opts))
+                (m/AnimatedContainer
+                 .duration (dart:core/Duration. .milliseconds 450)
+                 .decoration (m/BoxDecoration
+                              .color (-> surfaceVariant (.withOpacity 0.88))
+                              .border (m/Border .left (m/BorderSide .color (-> onSurface (.withOpacity 0.12))))))
+                (m/SafeArea .left false)
+                (m/Column)
+                .children
+                [(m/IconButton
+                  .icon (m/Icon (if (= theme-mode :dark) m.Icons/light_mode m.Icons/dark_mode))
+                  .onPressed on-toggle-theme)
+
+                 (m/Padding .padding (m/EdgeInsets.only .top 20.0 .bottom 15.0)
+                            .child (m/Opacity
+                                    .opacity (-> (m/CurveTween .curve (m/Interval 0.65 1.0)) (.evaluate curved-ac))
+                                    .child (mgl/MongolText "ᠮᠣᠩᠭᠣᠯ"
+                                                           .style (.copyWith titleMedium .color primary .fontWeight m.FontWeight/bold))))
+
+                 (m/Padding .padding (m/EdgeInsets.symmetric .vertical 12.0)
+                            .child (vertical-dots-indicator {:count (count items) :current-idx current-idx :color primary}))
+
+                 (m/Spacer)
+                 (m/Column
+                  .children
+                  (mapv (fn [{:keys [id label icon]}]
+                          (f/widget
+                           :get {{{:flds [primary onSurfaceVariant]} .-colorScheme} m/Theme}
+                           (m/InkWell .onTap #(do (s/HapticFeedback.selectionClick)
+                                                  (.animateToPage pc id .duration (dart:core/Duration. .milliseconds 500) .curve m.Curves/easeInOutCubic)
+                                                  nil))
+                           (m/Padding .padding (m/EdgeInsets.symmetric .vertical 15.0))
+                           (m/Column .mainAxisSize m/MainAxisSize.min)
+                           .children
+                           [(m/Icon icon .color (if (= current-idx id) primary onSurfaceVariant))
+                            (m/SizedBox .height 4.0)
+                            (mgl/MongolText label .style (m/TextStyle .color (if (= current-idx id) primary onSurfaceVariant)))]))
+                        items))
+                 (m/Spacer)
+                 (m/IconButton .icon (m/Icon (if pinned? m.Icons/push_pin m.Icons/push_pin_outlined))
+                               .onPressed on-toggle-pinned)])))))])))
