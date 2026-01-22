@@ -18,12 +18,14 @@
    [components.dialog :refer [vertical-custom-dialog]]
    [components.setting :refer [settings-section]]
    [components.navigation :refer [navigation-scaffold]]
+   [components.app-bar :refer [mongol-side-layout]]
 ;;    [components.tooltip :as tooltip]
    ))
 
 ;; Component list for the home page
 (def component-list
-  [{:name "Bottom Sheet" :key "bottom_sheet" :icon m/Icons.call_to_action}
+  [{:name "App Bar" :key "app_bar" :icon m/Icons.menu}
+   {:name "Bottom Sheet" :key "bottom_sheet" :icon m/Icons.call_to_action}
    {:name "Card" :key "card" :icon m/Icons.card_membership}
    {:name "Chip" :key "chip" :icon m/Icons.label}
    {:name "Dialog" :key "dialog" :icon m/Icons.bookmark}
@@ -577,27 +579,27 @@
       .scrollDirection m/Axis.horizontal
       .children
       [(settings-section
-        "Хэрэглэгчийн хэсэг"
-        [{:title "Миний мэдээлэл"
+        "User Section"
+        [{:title "My Information"
           :leading m.Icons/person_outline
           :show-arrow? true
           :on-tap #(println "Profile tap")}
-         {:title "Нууц үг солих"
+         {:title "Change Password"
           :leading m.Icons/lock_open
           :show-arrow? true}])
 
        (settings-section
-        "Систем тохиргоо"
-        [{:title "Харанхуй горим"
+        "System Settings"
+        [{:title "Dark Mode"
           :leading m.Icons/dark_mode
           :value @dark-mode?
           :on-changed #(reset! dark-mode? %)}
-         {:title "Мэдэгдэл"
-          :subtitle "Идэвхтэй"
+         {:title "Notifications"
+          :subtitle "Active"
           :leading m.Icons/notifications_active
           :value true}
-         {:title "Хэлний сонголт"
-          :subtitle "Монгол"
+         {:title "Language Selection"
+          :subtitle "Mongolian"
           :leading m.Icons/language
           :show-arrow? true}])]))))
 
@@ -619,6 +621,33 @@
                     .style (m/TextStyle
                            .fontSize 18
                            .color onSurface))]))))
+
+;; App Bar (Mongol Side Bar) demo page
+(defn app-bar-demo-page []
+  (f/widget
+   :context ctx
+   :let [goto (fn [route] (println "Navigate to:" route))
+         do-share (fn [] (println "Share action"))
+         my-content-view (fn []
+                          (m/Center
+                           .child (m/Column
+                                   .mainAxisAlignment m/MainAxisAlignment.center
+                                   .children
+                                   [(mgl/MongolText "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ"
+                                          .style (m/TextStyle
+                                                 .fontSize 24
+                                                 .fontWeight m/FontWeight.bold))
+                                    (m/SizedBox .height 16)
+                                    (mgl/MongolText "ᠡᠨᠡ ᠪᠣᠯ ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ᠌ ᠶᠤᠮ"
+                                          .style (m/TextStyle
+                                                 .fontSize 16))])))]
+                                                 
+   (mongol-side-layout
+    :title "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ"
+    :actions [{:icon m.Icons/settings :on-tap #(goto :settings)}
+              {:icon m.Icons/share :on-tap do-share}]
+    :body (m/Scaffold 
+           .body (my-content-view)))))
 
 ;; Navigation scaffold demo page
 (defn navigation-demo-page []
@@ -665,6 +694,7 @@
 ;; Route generator
 (defn get-demo-page [component-key]
   (case component-key
+    "app_bar" app-bar-demo-page
     "bottom_sheet" bottom-sheet-demo-page
     "card" card-demo-page
     "chip" chip-demo-page

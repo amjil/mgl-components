@@ -1,0 +1,160 @@
+(ns components.app-bar
+  (:require [cljd.flutter :as f]
+            ["dart:ui" :as ui]
+            ["package:flutter/material.dart" :as m]
+            ["package:flutter/physics.dart" :as p]
+            ["package:mongol/mongol.dart" :as mongol]))
+
+(defn mongol-side-layout
+  "Fully synchronized Mongolian sidebar layout
+   Parameters:
+   :title   - Mongolian title
+   :actions - Action list
+   :body    - Main content area (usually a Scaffold)
+   :min-width - Width of the sidebar when expanded"
+  [& {:keys [title actions body min-width spring-config]
+      :or {min-width 60.0
+           spring-config {:mass 1.0 :stiffness 250.0 :damping 28.0}}}]
+        (let [state (atom {:width 0.0 :animation nil}) ; Default initially hidden
+        hidden-width 0.0]
+    (f/widget
+     :vsync vsync
+     :get {{{:flds [surface onSurface primary onSurfaceVariant] :as theme} .-colorScheme
+            {:flds [titleLarge]} .-textTheme} m/Theme
+           {padding .-padding} m/MediaQuery}
+     :managed [animator (m/AnimationController .vsync vsync)]
+     :watch [{:keys [width animation]} state]
+     :bg-watcher ([animated-width animation]
+                  ;; If width is very small (close to closed), set to 0 to ensure complete closure
+                  (if (< animated-width 1.0)
+                    (swap! state assoc :width 0.0 :animation nil)
+                    (swap! state assoc :width animated-width)))
+     :let [;; Core progress calculation (0.0 to 1.0)
+           progress (-> (/ width min-width) (max 0.0) (min 1.0))
+           padding-top (.-top padding)
+
+           ;; Synchronization parameters
+           main-scale (- 1.0 (* progress 0.08))      ; Scale down to 0.92
+           main-offset (* width 0.8)                 ; Displacement
+           main-radius (* progress 32.0)             ; Dynamic border radius
+
+           run-spring
+           (fn [target-w velocity]
+             (.stop animator)
+             (let [{:keys [mass stiffness damping]} spring-config
+                   spring (p/SpringDescription .mass mass .stiffness stiffness .damping damping)
+                   sim (p/SpringSimulation spring width target-w velocity)
+                   current-width width]
+               (swap! state assoc :animation
+                      (.drive animator (m/Tween .begin current-width .end target-w)))
+               (.animateWith animator sim))
+             nil)]
+
+     ;; 1. Intercept back gesture: if sidebar is open, close it first
+     (m/PopScope
+      .canPop (<= width 0.0)
+      .onPopInvokedWithResult (fn [did-pop _] (when (not did-pop) (run-spring hidden-width 0.0))))
+
+     (m/GestureDetector
+      .behavior m.HitTestBehavior/translucent
+      .onHorizontalDragDown (fn [_] (.stop animator) (swap! state assoc :animation nil) nil)
+      .onHorizontalDragUpdate (fn [^m/DragUpdateDetails details]
+                                (let [dx (.-dx (.-delta details))
+                                      new-width (-> (+ width dx) (max hidden-width) (min min-width))]
+                                  (swap! state assoc :width new-width)
+                                  ;; If dragged close to 0, set to 0 to ensure complete closure
+                                  (when (< new-width 1.0)
+                                    (swap! state assoc :width 0.0)))
+                                nil)
+      .onHorizontalDragEnd (fn [^m/DragEndDetails details]
+                             (let [vx (.-dx (.-pixelsPerSecond (.-velocity details)))
+                                   target (cond (< vx -200) hidden-width
+                                                (> vx 200)  min-width
+                                                (< width (* min-width 0.5)) hidden-width  ; Stricter close threshold
+                                                :else min-width)]
+                               (run-spring target vx) nil))
+      .child
+      (m/Stack
+       .children
+       [;; --- Layer 1: Background base color (prevents blank space when scaling) ---
+        (m/Positioned.fill .child (m/Container .color (.-surface theme)))
+
+        ;; --- Layer 2: Main content synchronization area ---
+        (m/Transform.translate
+         .offset (m/Offset main-offset 0.0)
+         .child (m/Transform.scale
+                 .scale main-scale
+                 .child (m/ClipRRect
+                         .borderRadius (m/BorderRadius.circular main-radius)
+                         .child body)))
+
+        ;; --- Layer 3: Dark overlay (tap main content to retract sidebar) ---
+        (if (> width 0.0)
+          (m/Positioned.fill
+           .child (m/GestureDetector
+                   .onTap #(run-spring hidden-width -500.0)
+                   .child (m/Container .color (m/Colors.black.withOpacity (* progress 0.4)))))
+          (m/SizedBox.shrink))
+
+        ;; --- Layer 4: Left edge sensing area ---
+        (m/Positioned .left 0 .top 0 .bottom 0 .width 25.0 .child (m/Container .color m.Colors/transparent))
+
+        ;; --- Layer 5: Sidebar main body ---
+        (m/Positioned
+         .left 0 .top 0 .bottom 0
+         .child
+         (m/Opacity
+          .opacity (-> (* progress 1.5) (min 1.0))
+          .child
+          (m/Container
+           .width width
+           .decoration (m/BoxDecoration
+                        .color (-> surface (.withOpacity (min 0.98 (+ 0.7 (* 0.28 progress)))))
+                        .border (m/Border .right (m/BorderSide .color (-> onSurface (.withOpacity 0.1)))))
+           .child
+           (m/SafeArea
+            .child
+            (m/Column
+             .children
+             [;; Header back button
+              (m/IconButton .icon (m/Icon m.Icons/arrow_back .color primary)
+                            .onPressed #(run-spring hidden-width -500.0))
+              ;; Mongolian title
+              (m/Expanded
+               .child (m/Center
+                       .child (m/Opacity
+                               .opacity progress
+                               .child (m/Transform.scale
+                                       .scale (+ 0.85 (* 0.15 progress))
+                                       .child (mongol/MongolText title
+                                                                 .style (-> titleLarge
+                                                                            (.copyWith .color onSurface
+                                                                                       .fontWeight m.FontWeight/w600
+                                                                                       .fontSize (+ 15.0 (* 9.0 progress)))))))))
+              ;; Actions
+              (m/Padding
+               .padding (m/EdgeInsets.only .bottom 16.0)
+               .child (m/Column
+                       .children
+                       (map (fn [{:keys [icon on-tap]}]
+                              (m/Opacity
+                               .opacity (+ 0.5 (* 0.5 progress))
+                               .child (m/IconButton .icon (m/Icon icon .color onSurfaceVariant)
+                                                    .onPressed on-tap)))
+                            actions)))])))))
+
+        ;; --- Layer 6: Edge thin strip Handle ---
+        (m/Positioned
+         .left 0 .top (+ padding-top 40.0)
+         .child
+         (m/Opacity
+          .opacity (-> (- 1.0 (* progress 2.0)) (max 0.0))
+          .child
+          (m/GestureDetector
+           .onTap #(run-spring min-width 0.0)
+           .child
+           (m/Container .width 5.0 .height 100.0
+                        .decoration (m/BoxDecoration
+                                     .color (-> primary (.withOpacity 0.35))
+                                     .borderRadius (m/BorderRadius.only .topRight (m/Radius.circular 10.0)
+                                                                        .bottomRight (m/Radius.circular 10.0)))))))])))))
