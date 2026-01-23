@@ -629,24 +629,24 @@
    :let [goto (fn [route] (println "Navigate to:" route))
          do-share (fn [] (println "Share action"))
          my-content-view (fn []
-                          (m/Center
-                           .child (m/Column
-                                   .mainAxisAlignment m/MainAxisAlignment.center
-                                   .children
-                                   [(mgl/MongolText "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ"
-                                          .style (m/TextStyle
-                                                 .fontSize 24
-                                                 .fontWeight m/FontWeight.bold))
-                                    (m/SizedBox .height 16)
-                                    (mgl/MongolText "ᠡᠨᠡ ᠪᠣᠯ ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ᠌ ᠶᠤᠮ"
-                                          .style (m/TextStyle
-                                                 .fontSize 16))])))]
-                                                 
+                           (m/Center
+                            .child (m/Column
+                                    .mainAxisAlignment m/MainAxisAlignment.center
+                                    .children
+                                    [(mgl/MongolText "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ"
+                                                     .style (m/TextStyle
+                                                             .fontSize 24
+                                                             .fontWeight m/FontWeight.bold))
+                                     (m/SizedBox .height 16)
+                                     (mgl/MongolText "ᠡᠨᠡ ᠪᠣᠯ ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ᠌ ᠶᠤᠮ"
+                                                     .style (m/TextStyle
+                                                             .fontSize 16))])))]
+
    (mongol-side-layout
     :title "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ"
     :actions [{:icon m.Icons/settings :on-tap #(goto :settings)}
               {:icon m.Icons/share :on-tap do-share}]
-    :body (m/Scaffold 
+    :body (m/Scaffold
            .body (my-content-view)))))
 
 ;; Navigation scaffold demo page
