@@ -59,7 +59,6 @@
            {:flds [titleMedium]} .-textTheme} m/Theme}
     :vsync vsync
     ;; Use safe initial value
-    :watch [page-offset (atom (double current-idx))]
     :managed [pc (m/PageController .initialPage current-idx)
               ac (m/AnimationController .vsync vsync .duration (dart:core/Duration. .milliseconds 650))
               curved-ac (m/CurvedAnimation .parent ac .curve m.Curves/easeOutQuart)]
@@ -78,7 +77,10 @@
          .animation (m/Listenable.merge [curved-ac pc])
          .builder 
          (fn [context _]
-           (let [v (.-value curved-ac)
+           ;; When pinned, we force v to 1.0 so that
+           ;; the page is always in the fully-open state.
+           (let [raw-v (.-value curved-ac)
+                 v (if pinned? 1.0 raw-v)
                  current-page (if (.-hasClients pc) (or (.-page pc) (double current-idx)) (double current-idx))
                  transform (doto (m/Matrix4.identity)
                              (.setEntry 3 2 0.001)
@@ -124,37 +126,46 @@
        (m/Positioned.fill
          .child (m/GestureDetector
                   .behavior m.HitTestBehavior/translucent
+                  ;; When pinned, disable the drag gesture that hides/shows the sidebar.
                   .onHorizontalDragUpdate 
-                  (fn [details] 
-                    (let [delta-x (.-dx (.-delta details))
-                          change (/ (- delta-x) (:width opts))]
-                      (when (or (> (.-value ac) 0) (< delta-x 0))
-                        (set! (.-value ac) (-> (+ (.-value ac) change) (.clamp 0.0 1.0)))))
-                    nil)
+                  (when-not pinned?
+                    (fn [details] 
+                      (let [delta-x (.-dx (.-delta details))
+                            change (/ (- delta-x) (:width opts))]
+                        (when (or (> (.-value ac) 0) (< delta-x 0))
+                          (set! (.-value ac) (-> (+ (.-value ac) change) (.clamp 0.0 1.0)))))
+                      nil))
                   .onHorizontalDragEnd 
-                  (fn [_] (if (> (.-value ac) 0.5) (.forward ac) (.reverse ac))
-                    nil)))
+                  (when-not pinned?
+                    (fn [_] 
+                      (if (> (.-value ac) 0.5) 
+                        (.forward ac) 
+                        (.reverse ac))
+                      nil))))
 
        ;; C. Background Blur
        (f/widget
          :watch [v curved-ac]
-         (if (> v 0.0)
-           (m/Positioned.fill
-             .child (m/BackdropFilter 
-                      .filter (ui/ImageFilter.blur .sigmaX (* v (:blur opts)) 
-                                                  .sigmaY (* v (:blur opts)))
-                      .child (m/GestureDetector 
-                               .onTap #(do (.reverse ac)
-                                           nil)
-                               .child (m/Container .color (-> (.-black m/Colors) (.withOpacity (* v 0.45)))))))
-           (m/SizedBox.shrink)))
+         (let [v* (if pinned? 1.0 v)]
+           (if (> v* 0.0)
+             (m/Positioned.fill
+               .child (m/BackdropFilter 
+                        .filter (ui/ImageFilter.blur .sigmaX (* v* (:blur opts)) 
+                                                    .sigmaY (* v* (:blur opts)))
+                        .child (m/GestureDetector 
+                                 ;; When pinned, tapping on the blur should NOT close the sidebar.
+                                 .onTap (when-not pinned? #(do (.reverse ac) nil))
+                                 .child (m/Container .color (-> (.-black m/Colors) (.withOpacity (* v* 0.45)))))))
+             (m/SizedBox.shrink))))
 
        ;; D. Sidebar Content
        (m/AnimatedBuilder
          .animation curved-ac
          .builder
          (fn [_ _]
-           (let [v (.-value curved-ac)]
+           ;; When pinned, keep sidebar fully visible.
+           (let [raw-v (.-value curved-ac)
+                 v (if pinned? 1.0 raw-v)]
              (m/Positioned
                .right (- (* (:width opts) v) (:width opts))
                .top 0 .bottom 0
