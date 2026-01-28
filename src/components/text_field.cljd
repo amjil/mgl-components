@@ -6,9 +6,10 @@
 
 (defn text-field
   [{:keys [controller hint on-changed style decoration max-lines autofocus
-           prefix-icon suffix-icon]
+           prefix-icon suffix-icon obscure-text]
     :or {max-lines nil
-         autofocus false}}]
+         autofocus false
+         obscure-text false}}]
   (let [is-empty (atom (empty? (.-text controller)))
         default-font-size 16.0
         default-line-height 1.2]
@@ -72,6 +73,7 @@
                    .controller controller
                    .autofocus autofocus
                    .maxLines max-lines
+                   .obscureText obscure-text
                    .style base-style
                    .decoration final-decoration
                    .textAlign mgl/MongolTextAlign.top
