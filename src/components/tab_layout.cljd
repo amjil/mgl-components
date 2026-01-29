@@ -14,11 +14,11 @@
     (m/GestureDetector
       .onTap on-tap
       .child (m/Container
-               .padding (m/EdgeInsets.symmetric .vertical 20.0 .horizontal 16.0)
+               .padding (m/EdgeInsets.symmetric .vertical 20.0 .horizontal 8.0)
                .decoration (m/BoxDecoration
                              .color (if active? (.withOpacity primary 0.08) m/Colors.transparent)
                              .border (if active?
-                                       (m/Border .right (m/BorderSide .color primary .width 4.0))
+                                       (m/Border .right (m/BorderSide .color primary .width 2.0))
                                        (m/Border.all .color m/Colors.transparent)))
                .child (m/Column
                         .mainAxisSize m/MainAxisSize.min
@@ -27,7 +27,7 @@
                            (m/Padding 
                              .padding (m/EdgeInsets.only .bottom 8.0)
                              .child (m/Icon icon 
-                                      .size 22.0
+                                      .size 20.0
                                       .color (if active? primary onSurfaceVariant))))
                          (mgl/MongolText 
                            text

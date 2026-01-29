@@ -5,9 +5,10 @@
    [cljd.flutter :as f]))
 
 (defn text-field
-  [{:keys [controller hint on-changed style decoration max-lines autofocus
+  [{:keys [controller hint on-changed style decoration max-lines min-lines autofocus
            prefix-icon suffix-icon obscure-text]
     :or {max-lines nil
+         min-lines nil
          autofocus false
          obscure-text false}}]
   (let [is-empty (atom (empty? (.-text controller)))
@@ -26,6 +27,8 @@
                            default-line-height)
            fix-offset (* font-size line-height)
            fix-offset-half (/ (- fix-offset) 2)
+           multiline? (or (and max-lines (> max-lines 1))
+                          (and min-lines (> min-lines 1)))
            base-style (let [s (or style (m/TextStyle .color onSurface .fontSize font-size))]
                         (if (.-height s) s (.copyWith s .height line-height)))
 
@@ -44,7 +47,8 @@
          (m/Padding .padding (m/EdgeInsets.only .bottom 4) .child prefix-icon)
          (m/SizedBox.shrink))
 
-       (m/Expanded
+       (m/Flexible
+        .fit m/FlexFit.loose
         .child
         (m/Stack
          .alignment m/Alignment.topCenter
@@ -65,13 +69,14 @@
           ;; 2. Input field
           (m/Transform.translate
            .offset (cond
+                     multiline? (m/Offset (* fix-offset-half -2) 0)
                      (and is-empty? (nil? max-lines)) (m/Offset fix-offset-half 0)
                      (and (not is-empty?) (nil? max-lines)) m/Offset.zero
-                     (and max-lines (> max-lines 1)) (m/Offset (* fix-offset-half -2) 0)
                      :else m/Offset.zero)
            .child (mgl/MongolTextField
                    .controller controller
                    .autofocus autofocus
+                   .minLines min-lines
                    .maxLines max-lines
                    .obscureText obscure-text
                    .style base-style

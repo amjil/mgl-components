@@ -122,8 +122,6 @@
                        .color (-> surface (.withOpacity (min 0.98 (+ 0.8 (* 0.15 progress)))))
                        .border (m/Border .right (m/BorderSide .color (-> onSurface (.withOpacity 0.08)))))
           .child
-          (m/SafeArea
-           .child
            (m/Column
             .children
             [;; Mongolian title: fixed beautified display in narrow strip state
@@ -146,20 +144,18 @@
                               .opacity progress
                               .child (m/IconButton .icon (m/Icon icon .color onSurfaceVariant)
                                                    .onPressed on-tap)))
-                           actions)))]))))
+                           actions)))])))
 
         ;; 6. Edge Handle (hint only when completely hidden)
         (if has-back-button?
           (m/Align
            .alignment m/Alignment.topLeft
            .child
-           (m/SafeArea
-            .child
             (m/IconButton
              .icon (m/Icon m.Icons/arrow_back .color primary)
              .onPressed #(do (.pop navigator)
                              (dart:core/print "pop")
-                             nil))))
+                             nil)))
           (m/SizedBox.shrink))
 
         (m/Positioned
