@@ -8,11 +8,11 @@
 (defn mongol-side-layout
   "Optimized single-state linked sidebar (hidden <-> narrow strip).
    When `:pinned? true`, the sidebar is fixed and cannot be hidden."
-  [& {:keys [title actions body min-width spring-config pinned? has-back-button?]
-      :or {min-width 40.0  ;; Slightly wider for better Mongolian text display
-           spring-config {:mass 1.0 :stiffness 280.0 :damping 30.0} ;; Increased stiffness for more elasticity
-           pinned? false
-           has-back-button? true}}]
+  [{:keys [title actions body min-width spring-config pinned? has-back-button?]
+    :or {min-width 40.0  ;; Slightly wider for better Mongolian text display
+         spring-config {:mass 1.0 :stiffness 280.0 :damping 30.0} ;; Increased stiffness for more elasticity
+         pinned? false
+         has-back-button? true}}]
   (let [state (atom {:width 0.0 :animation nil})
         hidden-width 0.0]
     (f/widget

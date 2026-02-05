@@ -643,13 +643,13 @@
                                                              .fontSize 16))])))]
 
    (mongol-side-layout
-    :title "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ"
-    ;; :pinned? true
-    :has-back-button? false
-    :actions [{:icon m.Icons/settings :on-tap #(goto :settings)}
-              {:icon m.Icons/share :on-tap do-share}]
-    :body (m/Scaffold
-           .body (my-content-view)))))
+    {:title "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ"
+     ;; :pinned? true
+     :has-back-button? false
+     :actions [{:icon m.Icons/settings :on-tap #(goto :settings)}
+               {:icon m.Icons/share :on-tap do-share}]
+     :body (m/Scaffold
+            .body (my-content-view))})))
 
 ;; Navigation scaffold demo page
 (defn navigation-demo-page []

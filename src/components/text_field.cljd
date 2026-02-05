@@ -6,11 +6,12 @@
 
 (defn text-field
   [{:keys [controller hint on-changed style decoration max-lines min-lines autofocus
-           prefix-icon suffix-icon obscure-text]
+           prefix-icon suffix-icon obscure-text focus-node]
     :or {max-lines nil
          min-lines nil
          autofocus false
-         obscure-text false}}]
+         obscure-text false
+         focus-node nil}}]
   (let [is-empty (atom (empty? (.-text controller)))
         default-font-size 16.0
         default-line-height 1.2]
@@ -50,42 +51,50 @@
        (m/Flexible
         .fit m/FlexFit.loose
         .child
-        (m/Stack
-         .alignment m/Alignment.topCenter
-         .children
-         [;; 1. Fake Hint (positioned relative to input field, no need to consider prefix)
-          (if (and is-empty? hint)
-            (m/Positioned
-             .top 4
-             .child
-             (m/IgnorePointer
-              .child
-              (mgl/MongolText
-               hint
-               .style (.copyWith base-style .color (.withOpacity onSurfaceVariant 0.6))
-               .textAlign mgl/MongolTextAlign.top)))
-            (m/SizedBox.shrink))
+        (let [stack
+              (m/Stack
+               .alignment m/Alignment.topCenter
+               .children
+               [;; 1. Fake Hint (positioned relative to input field, no need to consider prefix)
+                (if (and is-empty? hint)
+                  (m/Positioned
+                   .top 4
+                   .child
+                   (m/IgnorePointer
+                    .child
+                    (mgl/MongolText
+                     hint
+                     .style (.copyWith base-style .color (.withOpacity onSurfaceVariant 0.6))
+                     .textAlign mgl/MongolTextAlign.top)))
+                  (m/SizedBox.shrink))
 
-          ;; 2. Input field
-          (m/Transform.translate
-           .offset (cond
-                     multiline? (m/Offset (* fix-offset-half -2) 0)
-                     (and is-empty? (nil? max-lines)) (m/Offset fix-offset-half 0)
-                     (and (not is-empty?) (nil? max-lines)) m/Offset.zero
-                     :else m/Offset.zero)
-           .child (mgl/MongolTextField
-                   .controller controller
-                   .autofocus autofocus
-                   .minLines min-lines
-                   .maxLines max-lines
-                   .obscureText obscure-text
-                   .style base-style
-                   .decoration final-decoration
-                   .textAlign mgl/MongolTextAlign.top
-                   .cursorColor onSurface
-                   .onChanged (fn [text]
-                                (reset! is-empty (empty? text))
-                                (when on-changed (on-changed text)))))]))
+                ;; 2. Input field
+                (m/Transform.translate
+                 .offset (cond
+                           multiline? (m/Offset (* fix-offset-half -2) 0)
+                           (and is-empty? (nil? max-lines)) (m/Offset fix-offset-half 0)
+                           (and (not is-empty?) (nil? max-lines)) m/Offset.zero
+                           :else m/Offset.zero)
+                 .child (mgl/MongolTextField
+                         .controller controller
+                         .focusNode focus-node
+                         .autofocus autofocus
+                         .minLines min-lines
+                         .maxLines max-lines
+                         .obscureText obscure-text
+                         .style base-style
+                         .decoration final-decoration
+                         .textAlign mgl/MongolTextAlign.top
+                         .cursorColor onSurface
+                         .onChanged (fn [text]
+                                      (reset! is-empty (empty? text))
+                                      (when on-changed (on-changed text)))))])]
+          (if focus-node
+            (m/GestureDetector
+             .behavior m/HitTestBehavior.opaque
+             .onTap #(.requestFocus focus-node)
+             .child stack)
+            stack)))
 
        (if suffix-icon
          (m/Padding .padding (m/EdgeInsets.only .top 4) .child suffix-icon)
