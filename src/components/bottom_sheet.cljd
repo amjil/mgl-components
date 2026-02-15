@@ -45,7 +45,7 @@
           (m/Expanded
            .child
            (let [render-item
-                 (fn [{:keys [type title icon on-tap]}]
+                 (fn [{:keys [type title icon on-tap color]}]
                    (if (= type :header)
                      ;; Group header
                      (m/Padding
@@ -62,7 +62,7 @@
                               .padding (m/EdgeInsets.all 16.0)
                               .child (m/Column
                                       .mainAxisSize m/MainAxisSize.min
-                                      .children [(m/Icon icon .color onSurface)
+                                      .children [(m/Icon icon .color (or color onSurface))
                                                  (m/SizedBox .height 10.0)
                                                  (mgl/MongolText title .style (.copyWith labelMedium .color onSurface))])))))]
              (if (= layout-mode :grid)

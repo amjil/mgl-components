@@ -59,7 +59,7 @@
                  (m/Expanded
                   .child (m/Padding
                           .padding (m/EdgeInsets.symmetric .horizontal (tokens/space :l))
-                          .child body))
+                          .child (or body (m/SizedBox.shrink))))
                  ;; 3. Action buttons area
                  (m/Container
                   .padding (m/EdgeInsets.only .left (tokens/space :l))

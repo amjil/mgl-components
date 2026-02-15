@@ -7,8 +7,9 @@
 
 (defn- build-action
   [{:keys [icon color on-pressed label]}]
+  ;; SlidableAction.onPressed is called with (BuildContext); wrap so 0-arity fns work.
   (slidable/SlidableAction
-   .onPressed on-pressed
+   .onPressed (fn [_context] (on-pressed))
    .backgroundColor color
    .foregroundColor (.white m/Colors)
    .padding (m/EdgeInsets.all 0)
