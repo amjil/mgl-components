@@ -22,7 +22,7 @@
      ;; Core fix: f/widget wraps inside builder, destructures Theme
      (f/widget
       :get {{{:flds [surface onSurface onSurfaceVariant primary outline]} .-colorScheme
-             {:flds [titleSmall labelMedium]} .-textTheme} m/Theme
+             {:flds [titleMedium bodyLarge]} .-textTheme} m/Theme
             {{:flds [height]} .-size} m/MediaQuery}
       :let [final-height (max (* height height-factor) min-height)]
       (m/SafeArea
@@ -54,7 +54,7 @@
                               .mainAxisSize m.MainAxisSize/min
                               .children [(m/Container .width 3.0 .height 30.0 .color primary)
                                          (m/SizedBox .width 10.0)
-                                         (mgl/MongolText title .style (.copyWith titleSmall .color primary .fontWeight m/FontWeight.bold))]))
+                                         (mgl/MongolText title .style (.copyWith titleMedium .color primary .fontWeight m/FontWeight.bold))]))
                      ;; Action button
                      (m/InkWell
                       .onTap (fn [] (when on-tap (on-tap)) (m/Navigator.pop context))
@@ -64,7 +64,7 @@
                                       .mainAxisSize m/MainAxisSize.min
                                       .children [(m/Icon icon .color onSurface)
                                                  (m/SizedBox .height 10.0)
-                                                 (mgl/MongolText title .style (.copyWith labelMedium .color onSurface))])))))]
+                                                 (mgl/MongolText title .style (.copyWith bodyLarge .color onSurface))])))))]
              (if (= layout-mode :grid)
                (m/SingleChildScrollView
                 .scrollDirection m/Axis.horizontal
