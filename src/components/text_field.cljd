@@ -1,11 +1,15 @@
 (ns components.text-field
   (:require
    ["package:flutter/material.dart" :as m]
+   ["package:flutter/services.dart" :as s] ;; 🌟 Required for SystemChannels to call TextInput.hide
    ["package:mongol/mongol.dart" :as mgl]
    [cljd.flutter :as f]))
 
 (defn text-field
-  [{:keys [controller hint on-changed style decoration max-lines min-lines autofocus
+  "Autonomous Mongolian text field.
+   Adds !shared-state to communicate with the global virtual keyboard, and adds on-submitted to handle return key events."
+  [!shared-state 
+   {:keys [controller hint on-changed on-submitted style decoration max-lines min-lines autofocus
            prefix-icon suffix-icon obscure-text focus-node]
     :or {max-lines nil
          min-lines nil
@@ -26,12 +30,8 @@
            line-height (or (when style (.-height style))
                            (when bodyMedium (.-height bodyMedium))
                            default-line-height)
-           fix-offset (* font-size line-height)
-           fix-offset-half (/ (- fix-offset) 2)
-           multiline? (or (and max-lines (> max-lines 1))
-                          (and min-lines (> min-lines 1)))
-           base-style (let [s (or style (m/TextStyle .color onSurface .fontSize font-size))]
-                        (if (.-height s) s (.copyWith s .height line-height)))
+           base-style (let [style-obj (or style (m/TextStyle .color onSurface .fontSize font-size))]
+                        (if (.-height style-obj) style-obj (.copyWith style-obj .height line-height)))
 
            ;; Clear default icons in decoration to avoid interference
            final-decoration (-> (or decoration (m/InputDecoration .border m/InputBorder.none))
@@ -40,56 +40,103 @@
                                  .hintStyle nil
                                  .contentPadding (m/EdgeInsets.symmetric .horizontal 8 .vertical 4)))]
 
-     ;; Use Column to vertically arrange icons and input field
-     (m/Column
-      .mainAxisSize m/MainAxisSize.min
-      .children
-      [(if prefix-icon
-         (m/Padding .padding (m/EdgeInsets.only .bottom 4) .child prefix-icon)
-         (m/SizedBox.shrink))
+     ;; 🌟 1. Wrap with m/Focus to listen for focus changes and take over the bottom virtual keyboard
+     (m/Focus
+      .focusNode focus-node
+      .onFocusChange 
+      (fn [has-focus?]
+        (if has-focus?
+          (do
+            ;; When focused: forcefully hide the native system keyboard
+            (s/SystemChannels.textInput.invokeMethod "TextInput.hide")
+            
+            ;; Register the 'keyboard operation delegate' to the shared !shared-state
+            (swap! !shared-state assoc :external-keyboard-delegate
+                   {:on-return 
+                    (fn []
+                      ;; Default return behavior: trigger on-submitted if available, otherwise unfocus
+                      (if on-submitted
+                        (on-submitted (.-text controller))
+                        (when focus-node (.unfocus focus-node))))
+                    
+                    :on-backspace 
+                    (fn []
+                      ;; Independent backspace logic
+                      (let [text (.-text controller)
+                            sel (.-selection controller)
+                            base (.-baseOffset sel)
+                            ext (.-extentOffset sel)
+                            start (min base ext)
+                            end (max base ext)]
+                        (if (not= start end)
+                          ;; Delete the selected multiple characters
+                          (set! (.-value controller)
+                                (m/TextEditingValue 
+                                 .text (str (subs text 0 start) (subs text end))
+                                 .selection (m/TextSelection.collapsed .offset start)))
+                          ;; Delete a single character backwards
+                          (when (> start 0)
+                            (set! (.-value controller)
+                                  (m/TextEditingValue 
+                                   .text (str (subs text 0 (dec start)) (subs text end))
+                                   .selection (m/TextSelection.collapsed .offset (dec start))))))))}))
+          
+          ;; When unfocused: unregister the delegate
+          (swap! !shared-state assoc :external-keyboard-delegate nil)))
+      
+      .child
+      ;; Use Column to vertically arrange icons and input field
+      (m/Column
+       .mainAxisSize m/MainAxisSize.min
+       .children
+       [(if prefix-icon
+          (m/Padding .padding (m/EdgeInsets.only .bottom 4) .child prefix-icon)
+          (m/SizedBox.shrink))
 
-       (m/Flexible
-        .fit m/FlexFit.loose
-        .child
-        (let [stack
-              (m/Stack
-               .alignment m/Alignment.topCenter
-               .children
-               [;; 1. Fake Hint (positioned relative to input field, no need to consider prefix)
-                (if (and is-empty? hint)
-                  (m/Positioned
-                   .top 4
-                   .child
-                   (m/IgnorePointer
+        (m/Flexible
+         .fit m/FlexFit.loose
+         .child
+         (let [stack
+               (m/Stack
+                .alignment m/Alignment.topCenter
+                .children
+                [;; 1. Fake Hint (positioned relative to input field, no need to consider prefix)
+                 (if (and is-empty? hint)
+                   (m/Positioned
+                    .top 4
                     .child
-                    (mgl/MongolText
-                     hint
-                     .style (.copyWith base-style .color (.withOpacity onSurfaceVariant 0.6))
-                     .textAlign mgl/MongolTextAlign.top)))
-                  (m/SizedBox.shrink))
+                    (m/IgnorePointer
+                     .child
+                     (mgl/MongolText
+                      hint
+                      .style (.copyWith base-style .color (.withOpacity onSurfaceVariant 0.6))
+                      .textAlign mgl/MongolTextAlign.top)))
+                   (m/SizedBox.shrink))
 
-                ;; 2. Input field
-                (mgl/MongolTextField
-                 .controller controller
-                 .focusNode focus-node
-                 .autofocus autofocus
-                 .minLines min-lines
-                 .maxLines max-lines
-                 .obscureText obscure-text
-                 .style base-style
-                 .decoration final-decoration
-                 .textAlign mgl/MongolTextAlign.top
-                 .cursorColor onSurface
-                 .onChanged (fn [text]
-                              (reset! is-empty (empty? text))
-                              (when on-changed (on-changed text))))])]
-          (if focus-node
-            (m/GestureDetector
-             .behavior m/HitTestBehavior.opaque
-             .onTap #(.requestFocus focus-node)
-             .child stack)
-            stack)))
+                 ;; 2. Input field (retaining your modified, clean structure)
+                 (mgl/MongolTextField
+                  .controller controller
+                  .focusNode focus-node
+                  .autofocus autofocus
+                  .minLines min-lines
+                  .maxLines max-lines
+                  .obscureText obscure-text
+                  .style base-style
+                  .decoration final-decoration
+                  .textAlign mgl/MongolTextAlign.top
+                  .cursorColor onSurface
+                  .onChanged (fn [text]
+                               (reset! is-empty (empty? text))
+                               (when on-changed (on-changed text))))])]
+           
+           (if focus-node
+             ;; Actively request focus when clicking the empty area
+             (m/GestureDetector
+              .behavior m/HitTestBehavior.opaque
+              .onTap #(.requestFocus focus-node)
+              .child stack)
+             stack)))
 
-       (if suffix-icon
-         (m/Padding .padding (m/EdgeInsets.only .top 4) .child suffix-icon)
-         (m/SizedBox.shrink))]))))
+        (if suffix-icon
+          (m/Padding .padding (m/EdgeInsets.only .top 4) .child suffix-icon)
+          (m/SizedBox.shrink))])))))

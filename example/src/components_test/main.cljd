@@ -308,10 +308,11 @@
             :on-change (fn [idx] (println "Switched to tab:" idx))}))))
 
 (defn text-field-demo-page []
-  (let [controller1 (m/TextEditingController.)
-        controller2 (m/TextEditingController.)
-        controller3 (m/TextEditingController.)]
+  (let [state (atom {})]
     (f/widget
+     :managed [controller1 (m/TextEditingController.)
+               controller2 (m/TextEditingController.)
+               controller3 (m/TextEditingController.)]
      (m/Scaffold
       .appBar (m/AppBar .title (m/Text "Text Field Demo"))
       .body (m/Padding
@@ -320,35 +321,38 @@
              (m/SingleChildScrollView
               .scrollDirection m/Axis.horizontal
               .child
-             (m/Row
-              .crossAxisAlignment m/CrossAxisAlignment.start
-              .children
-              [(mgl/MongolText "Text Fields" .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
-               (m/SizedBox .width 24)
-               (mgl/MongolText "Basic Text Field with Hint" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
-               (m/SizedBox .width 8)
-               (text-field/text-field
-                {:controller controller1
-                 :prefix-icon (m/Icon m/Icons.search)
-                 :max-lines 1
-                 :hint "Naran Bichig Bichig Bichig"
-                 :on-changed (fn [text] (println "Text changed:" text))})
-               (m/SizedBox .width 24)
-               (mgl/MongolText "Multi-line Text Field" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
-               (m/SizedBox .width 8)
-               (text-field/text-field
-                {:controller controller2
-                 :hint "Mongol Usughel"
-                 :max-lines 3
-                 :on-changed (fn [text] (println "Multi-line text changed:" text))})
-               (m/SizedBox .width 24)
-               (mgl/MongolText "Autofocus Text Field" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
-               (m/SizedBox .width 8)
-               (text-field/text-field
-                {:controller controller3
-                 :hint "Aatumaatal Altumaatal Altumaatal"
-                 :autofocus true
-                 :on-changed (fn [text] (println "Autofocus text changed:" text))})])))))))
+              (m/Row
+               .crossAxisAlignment m/CrossAxisAlignment.start
+               .children
+               [(mgl/MongolText "Text Fields" .style (m/TextStyle .fontSize 20 .fontWeight m/FontWeight.bold))
+                (m/SizedBox .width 24)
+                (mgl/MongolText "Basic Text Field with Hint" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
+                (m/SizedBox .width 8)
+                (text-field/text-field
+                 state
+                 {:controller controller1
+                  :prefix-icon (m/Icon m/Icons.search)
+                  :max-lines 1
+                  :hint "Naran Bichig Bichig Bichig"
+                  :on-changed (fn [text] (println "Text changed:" text))})
+                (m/SizedBox .width 24)
+                (mgl/MongolText "Multi-line Text Field" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
+                (m/SizedBox .width 8)
+                (text-field/text-field
+                 state
+                 {:controller controller2
+                  :hint "Mongol Usughel"
+                  :max-lines 3
+                  :on-changed (fn [text] (println "Multi-line text changed:" text))})
+                (m/SizedBox .width 24)
+                (mgl/MongolText "Autofocus Text Field" .style (m/TextStyle .fontSize 16 .fontWeight m/FontWeight.w500))
+                (m/SizedBox .width 8)
+                (text-field/text-field
+                 state
+                 {:controller controller3
+                  :hint "Aatumaatal Altumaatal Altumaatal"
+                  :autofocus true
+                  :on-changed (fn [text] (println "Autofocus text changed:" text))})])))))))
 
 (defn toast-demo-page []
   (f/widget

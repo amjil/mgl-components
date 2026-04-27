@@ -76,6 +76,7 @@
                            .border (m/Border.all .color outlineVariant)
                            .borderRadius (m/BorderRadius.circular 8))
               .child (text-field/text-field
+                      nil
                       {:controller controller
                        :hint hint
                        :autofocus true
