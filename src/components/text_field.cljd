@@ -46,41 +46,37 @@
       .onFocusChange 
       (fn [has-focus?]
         (if has-focus?
-          (do
-            ;; When focused: forcefully hide the native system keyboard
-            (s/SystemChannels.textInput.invokeMethod "TextInput.hide")
-            
-            ;; Register the 'keyboard operation delegate' to the shared !shared-state
-            (swap! !shared-state assoc :external-keyboard-delegate
-                   {:on-return 
-                    (fn []
-                      ;; Default return behavior: trigger on-submitted if available, otherwise unfocus
-                      (if on-submitted
-                        (on-submitted (.-text controller))
-                        (when focus-node (.unfocus focus-node))))
-                    
-                    :on-backspace 
-                    (fn []
-                      ;; Independent backspace logic
-                      (let [text (.-text controller)
-                            sel (.-selection controller)
-                            base (.-baseOffset sel)
-                            ext (.-extentOffset sel)
-                            start (min base ext)
-                            end (max base ext)]
-                        (if (not= start end)
-                          ;; Delete the selected multiple characters
+          ;; Register the 'keyboard operation delegate' to the shared !shared-state
+          (swap! !shared-state assoc :external-keyboard-delegate
+                 {:on-return
+                  (fn []
+                    ;; Default return behavior: trigger on-submitted if available, otherwise unfocus
+                    (if on-submitted
+                      (on-submitted (.-text controller))
+                      (when focus-node (.unfocus focus-node))))
+
+                  :on-backspace
+                  (fn []
+                    ;; Independent backspace logic
+                    (let [text (.-text controller)
+                          sel (.-selection controller)
+                          base (.-baseOffset sel)
+                          ext (.-extentOffset sel)
+                          start (min base ext)
+                          end (max base ext)]
+                      (if (not= start end)
+                        ;; Delete the selected multiple characters
+                        (set! (.-value controller)
+                              (m/TextEditingValue
+                               .text (str (subs text 0 start) (subs text end))
+                               .selection (m/TextSelection.collapsed .offset start)))
+                        ;; Delete a single character backwards
+                        (when (> start 0)
                           (set! (.-value controller)
-                                (m/TextEditingValue 
-                                 .text (str (subs text 0 start) (subs text end))
-                                 .selection (m/TextSelection.collapsed .offset start)))
-                          ;; Delete a single character backwards
-                          (when (> start 0)
-                            (set! (.-value controller)
-                                  (m/TextEditingValue 
-                                   .text (str (subs text 0 (dec start)) (subs text end))
-                                   .selection (m/TextSelection.collapsed .offset (dec start))))))))}))
-          
+                                (m/TextEditingValue
+                                 .text (str (subs text 0 (dec start)) (subs text end))
+                                 .selection (m/TextSelection.collapsed .offset (dec start))))))))})
+
           ;; When unfocused: unregister the delegate
           (swap! !shared-state assoc :external-keyboard-delegate nil)))
       
