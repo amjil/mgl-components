@@ -42,38 +42,38 @@
           (.lineTo path (+ (/ width 2) (/ arrow-size 2)) arrow-h)  ;; Arrow bottom right
           (.lineTo path (- width r) arrow-h)  ;; Rectangle top right corner start
           (.arcToPoint path (m/Offset width (+ arrow-h r))
-                      .radius (m/Radius.circular r))  ;; Top right rounded corner
+                       .radius (m/Radius.circular r))  ;; Top right rounded corner
           (.lineTo path width (- height r))  ;; Right edge
           (.arcToPoint path (m/Offset (- width r) height)
-                      .radius (m/Radius.circular r))  ;; Bottom right rounded corner
+                       .radius (m/Radius.circular r))  ;; Bottom right rounded corner
           (.lineTo path r height)  ;; Bottom edge
           (.arcToPoint path (m/Offset 0.0 (- height r))
-                      .radius (m/Radius.circular r))  ;; Bottom left rounded corner
+                       .radius (m/Radius.circular r))  ;; Bottom left rounded corner
           (.lineTo path 0.0 (+ arrow-h r))  ;; Left edge
           (.arcToPoint path (m/Offset r arrow-h)
-                      .radius (m/Radius.circular r))  ;; Top left rounded corner
+                       .radius (m/Radius.circular r))  ;; Top left rounded corner
           (.lineTo path (- (/ width 2) (/ arrow-size 2)) arrow-h)  ;; Arrow bottom left
           (.close path))
         ;; Arrow pointing down: start from rectangle top, arrow at bottom
         (do
           (.moveTo path r 0.0)  ;; Top left (after rounded corner)
           (.arcToPoint path (m/Offset (- width r) 0.0)
-                      .radius (m/Radius.circular r))  ;; Top rounded corner
+                       .radius (m/Radius.circular r))  ;; Top rounded corner
           (.lineTo path (- width r) 0.0)
           (.arcToPoint path (m/Offset width r)
-                      .radius (m/Radius.circular r))  ;; Top right rounded corner
+                       .radius (m/Radius.circular r))  ;; Top right rounded corner
           (.lineTo path width (- height arrow-h r))  ;; Right edge
           (.arcToPoint path (m/Offset (- width r) (- height arrow-h))
-                      .radius (m/Radius.circular r))  ;; Bottom right rounded corner (above arrow)
+                       .radius (m/Radius.circular r))  ;; Bottom right rounded corner (above arrow)
           (.lineTo path (+ (/ width 2) (/ arrow-size 2)) (- height arrow-h))  ;; Arrow top right
           (.lineTo path (/ width 2) height)  ;; Arrow tip (bottom center)
           (.lineTo path (- (/ width 2) (/ arrow-size 2)) (- height arrow-h))  ;; Arrow top left
           (.lineTo path r (- height arrow-h))  ;; Left edge
           (.arcToPoint path (m/Offset 0.0 (- height arrow-h r))
-                      .radius (m/Radius.circular r))  ;; Bottom left rounded corner (above arrow)
+                       .radius (m/Radius.circular r))  ;; Bottom left rounded corner (above arrow)
           (.lineTo path 0.0 r)  ;; Left edge
           (.arcToPoint path (m/Offset r 0.0)
-                      .radius (m/Radius.circular r))  ;; Top left rounded corner
+                       .radius (m/Radius.circular r))  ;; Top left rounded corner
           (.close path)))
       
       ;; Draw shadow
@@ -112,58 +112,43 @@
                                .color text-color
                                .fontSize (or (:font-size config) 16.0))
          display-message (or message "Tooltip")
-         content-padding-top (if pointing-up? arrow-height 0.0)
-         content-padding-bottom (if pointing-up? 0.0 arrow-height)
+         
+         ;; Reserve space for arrow on the appropriate side based on arrow direction
+         content-padding-top (+ (:vertical padding) (if pointing-up? arrow-height 0.0))
+         content-padding-bottom (+ (:vertical padding) (if pointing-up? 0.0 arrow-height))
+         
          text-widget (mgl/MongolText
                       display-message
                       .style text-style
                       .textAlign mgl/MongolTextAlign.top)]
-   (m/ConstrainedBox
-    .constraints (m/BoxConstraints
-                  .maxWidth (:max-width config)
-                  .maxHeight (:max-height config)))
-   (m/IntrinsicWidth)
-   (m/IntrinsicHeight)
-   (m/LayoutBuilder
-    .builder (fn [_ constraints]
-               (let [content-widget (m/Padding
-                                     .padding (m/EdgeInsets.only
-                                               .top content-padding-top
-                                               .bottom content-padding-bottom
-                                               .left (:horizontal padding)
-                                               .right (:horizontal padding))
-                                     .child (m/Padding
-                                             .padding (m/EdgeInsets.symmetric
-                                                       .vertical (:vertical padding))
-                                             .child text-widget))
-                     ;; Use IntrinsicWidth/Height to calculate content size
-                     content-width (max (.-maxWidth constraints) 100.0)
-                     content-height (max (.-maxHeight constraints) 50.0)
-                     bubble-width content-width
-                     bubble-height content-height]
-                 (m/Stack
-                  .children
-                  [(m/SizedBox
-                    .width bubble-width
-                    .height bubble-height
-                    .child (m/CustomPaint
-                            .painter (BubblePainter. bg-color radius arrow-size arrow-height pointing-up? shadow)
-                            .size (m/Size. bubble-width bubble-height)))
-                   content-widget]))))))
+   ;; CustomPaint wraps content and automatically adapts to child widget size
+   (m/CustomPaint
+    .painter (BubblePainter. bg-color radius arrow-size arrow-height pointing-up? shadow)
+    .child (m/Container
+            .constraints (m/BoxConstraints
+                          .maxWidth (:max-width config)
+                          .maxHeight (:max-height config))
+            .padding (m/EdgeInsets.only
+                      .top content-padding-top
+                      .bottom content-padding-bottom
+                      .left (:horizontal padding)
+                      .right (:horizontal padding))
+            .child text-widget))))
 
-;; --- 3. Wrapper Layer (Layout & Animation) ---
+;; --- 2. Wrapper Layer (Layout & Positioning) ---
 (defn- bubble-overlay-wrapper [{:keys [layer-link message config]}]
   (f/widget
    :get {m/Theme}
    :let [position (:position config)
          spacing (:spacing config)
          target-anchor (if (= :bottom position)
-                        m/Alignment.bottomCenter
-                        m/Alignment.topCenter)
+                         m/Alignment.bottomCenter
+                         m/Alignment.topCenter)
          follower-anchor (if (= :bottom position)
-                          m/Alignment.topCenter
-                          m/Alignment.bottomCenter)
-         offset-y (if (= :bottom position) (- spacing) spacing)]
+                           m/Alignment.topCenter
+                           m/Alignment.bottomCenter)
+         ;; Offset: below = positive Y (move down), above = negative Y (move up)
+         offset-y (if (= :bottom position) spacing (- spacing))]
      (m/CompositedTransformFollower
       .link layer-link
       .showWhenUnlinked false
@@ -174,15 +159,15 @@
               {:message message
                :config config}))))
 
-;; --- 4. Main Component (Lifecycle & Persistence) ---
+;; --- 3. Main Component (Lifecycle & Persistence) ---
 (defn v-overlay-tooltip [{:keys [child message haptic? config position] 
                           :or {haptic? false}}]
   (let [layer-link (m/LayerLink.)
         overlay-entry (atom nil)
         is-show? (atom false)
         merged-config (merge default-config 
-                            (or config {})
-                            (if position {:position position} {}))]
+                             (or config {})
+                             (if position {:position position} {}))]
     (f/widget
      :get {m/Theme}
      :context ctx
@@ -194,7 +179,7 @@
                      nil)
            
            show-fn (fn []
-                     (hide-fn) ;; Clean up any existing overlay
+                     (hide-fn) ;; Ensure no duplicate overlay
                      (when haptic? (s/HapticFeedback.lightImpact))
                      
                      (let [entry (m/OverlayEntry
@@ -211,13 +196,11 @@
      
      (m/GestureDetector
       .onLongPress show-fn
-      .onLongPressUp (fn []
-                       ;; Hide on release
-                       (hide-fn))
+      .onLongPressUp hide-fn
+      .onLongPressCancel hide-fn  ;; Prevent bubble stuck on screen when finger slides out
       .child (m/CompositedTransformTarget
               .link layer-link
               .child child)))))
-
 
 ;; Example usage
 ;; (v-overlay-tooltip

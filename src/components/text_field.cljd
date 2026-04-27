@@ -72,7 +72,7 @@
                 (m/Transform.translate
                  .offset (cond
                            multiline? (m/Offset (* fix-offset-half -2) 0)
-                           (and is-empty? (nil? max-lines)) (m/Offset fix-offset-half 0)
+                          ;;  (and is-empty? (nil? max-lines)) (m/Offset fix-offset-half 0)
                            (and (not is-empty?) (nil? max-lines)) m/Offset.zero
                            :else m/Offset.zero)
                  .child (mgl/MongolTextField
